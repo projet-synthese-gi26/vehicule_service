@@ -1,3 +1,5 @@
+//---> PATH: src/main/java/com/yowyob/template/infrastructure/security/JwtAuthenticationFilter.java
+
 package com.yowyob.template.infrastructure.security;
 
 import org.slf4j.Logger;
@@ -35,11 +37,14 @@ public class JwtAuthenticationFilter implements WebFilter {
         this.authServiceClient = authServiceClient;
     }
 
+    // Exception interne pour contrôler le flux réactif sans exposer d'erreur système
+    private static class TokenInvalidException extends RuntimeException {}
+
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         String token = extractToken(exchange.getRequest());
         
-        // Si pas de token, laisser passer (Spring Security décidera si l'endpoint est protégé)
+        // 1. Si pas de token, on laisse passer (la config Security décidera si c'est public ou non)
         if (token == null) {
             log.debug("Pas de token trouvé, laisse passer la requête: {}", exchange.getRequest().getPath());
             return chain.filter(exchange);
@@ -47,10 +52,12 @@ public class JwtAuthenticationFilter implements WebFilter {
 
         log.debug("Token trouvé, vérification auprès du service d'auth pour: {}", exchange.getRequest().getPath());
 
-        // Token présent -> vérifier auprès du service d'auth AVANT de continuer
         return authServiceClient.verifyToken(token)
+                // 2. Si verifyToken renvoie empty (token invalide), on lève une erreur spécifique ICI
+                .switchIfEmpty(Mono.error(new TokenInvalidException()))
+                
+                // 3. Si on arrive ici, c'est que le token est valide (user n'est pas null)
                 .flatMap(authenticatedUser -> {
-                    // Token valide -> continuer avec l'authentification
                     log.debug("Token valide pour l'utilisateur: {}", authenticatedUser.getId());
                     JwtAuthenticationToken authentication = new JwtAuthenticationToken(
                             authenticatedUser,
@@ -58,12 +65,14 @@ public class JwtAuthenticationFilter implements WebFilter {
                             authenticatedUser.getAuthorities()
                     );
                     
+                    // On injecte l'authentification et on passe la main au contrôleur
                     return chain.filter(exchange)
                             .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication));
                 })
-                // Si token invalide/expiré (Mono.empty() retourné par authServiceClient)
-                // -> BLOQUER immédiatement avec 401
-                .switchIfEmpty(handleUnauthorized(exchange));
+                
+                // 4. On attrape uniquement l'erreur "TokenInvalidException" pour renvoyer le 401
+                // Les autres erreurs (ex: contrôleur qui crash) ne passeront pas par ici.
+                .onErrorResume(TokenInvalidException.class, e -> handleUnauthorized(exchange));
     }
     
     /**
@@ -77,7 +86,6 @@ public class JwtAuthenticationFilter implements WebFilter {
         
         // Vérifier si la réponse n'est pas déjà committed
         if (response.isCommitted()) {
-            log.error("La réponse est déjà committed, impossible de renvoyer 401");
             return Mono.empty();
         }
         

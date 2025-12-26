@@ -30,7 +30,7 @@ public class VehicleOwnershipController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create Vehicle Ownership", description = "Crée une ownership de véhicule. Le partyId est automatiquement récupéré depuis l'utilisateur authentifié.")
-    @SecurityRequirement(name = "bearer-jwt")
+    @SecurityRequirement(name = "bearerAuth")
     public Mono<VehicleOwnershipResponse> createOwnership(
             @Valid @RequestBody VehicleOwnershipRequest request,
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
@@ -60,7 +60,7 @@ public class VehicleOwnershipController {
 
     @GetMapping("/me")
     @Operation(summary = "Get My Ownerships", description = "Récupère les ownerships de l'utilisateur connecté")
-    @SecurityRequirement(name = "bearer-jwt")
+    @SecurityRequirement(name = "bearerAuth")
     public Flux<VehicleOwnershipResponse> getMyOwnerships(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
         if (authenticatedUser == null || authenticatedUser.getId() == null) {

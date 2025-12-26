@@ -36,39 +36,18 @@ public class AuthServiceClient {
      * @return Mono<AuthenticatedUser> si le token est valide, Mono.empty() sinon
      */
     public Mono<AuthenticatedUser> verifyToken(String token) {
-        log.debug("Vérification du token auprès du service d'authentification");
-        
-        return webClient.get()
-                .uri("/api/auth/me")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-                .retrieve()
-                .onStatus(HttpStatusCode::is4xxClientError, response -> {
-                    log.warn("Token invalide ou expiré: {}", response.statusCode());
-                    // Retourner une erreur spécifique pour les tokens invalides
-                    return Mono.error(new InvalidTokenException("Token invalide ou expiré"));
-                })
-                .onStatus(HttpStatusCode::is5xxServerError, response -> {
-                    log.error("Erreur du service d'authentification: {}", response.statusCode());
-                    return Mono.error(new RuntimeException("Auth service unavailable"));
-                })
-                .bodyToMono(AuthUserResponse.class)
-                .map(this::mapToAuthenticatedUser)
-                .doOnSuccess(user -> {
-                    if (user != null) {
-                        log.debug("Token valide pour l'utilisateur: {}", user.getUsername());
-                    }
-                })
-                .onErrorResume(InvalidTokenException.class, e -> {
-                    // Pour les tokens invalides, retourner Mono.empty() (401 sera géré par le filtre)
-                    log.debug("Token invalide détecté: {}", e.getMessage());
-                    return Mono.empty();
-                })
-                .onErrorResume(e -> {
-                    log.error("Erreur lors de la vérification du token: {}", e.getMessage());
-                    return Mono.empty();
-                });
-    }
-    
+    return webClient.get()
+            .uri("/api/auth/me")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+            .retrieve()
+            .onStatus(HttpStatusCode::is4xxClientError, response -> Mono.error(new InvalidTokenException("Token invalide")))
+            .onStatus(HttpStatusCode::is5xxServerError, response -> Mono.error(new RuntimeException("Erreur serveur auth")))
+            .bodyToMono(AuthUserResponse.class)
+            .map(this::mapToAuthenticatedUser)
+            // AJOUTER CE LOG POUR VOIR L'ERREUR RÉELLE
+            .doOnError(e -> log.error("ERREUR AUTH SERVICE : {} - {}", e.getClass().getSimpleName(), e.getMessage())) 
+            .onErrorResume(e -> Mono.empty());
+   }
     /**
      * Exception interne pour les tokens invalides
      */

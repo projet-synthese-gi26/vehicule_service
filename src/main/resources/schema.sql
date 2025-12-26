@@ -1,19 +1,7 @@
-/*CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
-DROP TABLE IF EXISTS products CASCADE;
-
-CREATE TABLE IF NOT EXISTS products (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255),
-    price DECIMAL(10, 2),
-    status VARCHAR(50)
-);*/
-
 -- Active l'extension pour générer des UUIDs, si elle n'est pas déjà active.
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Supprime les anciennes tables dans l'ordre inverse de la création pour éviter les erreurs de dépendance.
--- CASCADE supprime automatiquement les contraintes qui dépendent de ces tables.
 DROP TABLE IF EXISTS VehicleOwnership CASCADE;
 DROP TABLE IF EXISTS VehicleReview CASCADE;
 DROP TABLE IF EXISTS VehicleIllustrationImage CASCADE;
@@ -33,7 +21,6 @@ DROP TABLE IF EXISTS VehicleModel CASCADE;
 
 -- ================================================================================================
 -- TABLES DE RÉFÉRENCE (Lookup Tables)
--- Celles-ci doivent être créées en premier car la table Vehicle en dépend.
 -- ================================================================================================
 
 CREATE TABLE VehicleModel (
@@ -45,14 +32,14 @@ CREATE TABLE VehicleModel (
 
 CREATE TABLE TransmissionType (
     transmission_type_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    type_name TEXT NOT NULL, -- Ex: 'Manual 2WD', 'Automatic 4WD'
+    type_name TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ
 );
 
 CREATE TABLE VehicleMake (
     vehicle_make_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    make_name TEXT NOT NULL -- 'Brand'
+    make_name TEXT NOT NULL
 );
 
 CREATE TABLE VehicleSize (
@@ -64,22 +51,21 @@ CREATE TABLE VehicleSize (
 
 CREATE TABLE FuelType (
     fuel_type_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    fuel_type_name TEXT NOT NULL -- Ex: 'petrol', 'diesel', 'electric', 'hybrid'
+    fuel_type_name TEXT NOT NULL
 );
 
 CREATE TABLE VehicleType (
     vehicle_type_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    type_name TEXT NOT NULL -- Ex: 'commercial', 'sport', 'personal'
+    type_name TEXT NOT NULL
 );
 
 CREATE TABLE Manufacturer (
     manufacturer_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    manufacturer_name TEXT NOT NULL -- Ex: 'Toyota', 'Renault', 'Mercedes'
+    manufacturer_name TEXT NOT NULL
 );
 
 -- ================================================================================================
 -- TABLE POUR LES PROPRIÉTAIRES / UTILISATEURS (Parties)
--- Utilise une approche "Single Table Inheritance" pour les différents types de Party.
 -- ================================================================================================
 
 CREATE TABLE Party (
@@ -93,7 +79,6 @@ CREATE TABLE Party (
 
 -- ================================================================================================
 -- TABLE PRINCIPALE (Vehicle)
--- Le cœur du domaine.
 -- ================================================================================================
 
 CREATE TABLE Vehicle (
@@ -110,9 +95,9 @@ CREATE TABLE Vehicle (
 
     -- Informations d'identification du véhicule
     vehicle_serial_number TEXT UNIQUE,
-    vehicle_serial_photo TEXT,      -- URL ou chemin vers le fichier
+    vehicle_serial_photo TEXT,
     registration_number TEXT,
-    registration_photo TEXT,        -- URL ou chemin vers le fichier
+    registration_photo TEXT,
     registration_expiry_date TIMESTAMPTZ,
 
     -- Caractéristiques techniques
@@ -127,7 +112,7 @@ CREATE TABLE Vehicle (
     vehicle_age_at_start NUMERIC,
 
     -- Métadonnées
-    brand TEXT, -- Peut être redondant avec VehicleMake, mais conservé du diagramme
+    brand TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ
 );
@@ -135,7 +120,6 @@ CREATE TABLE Vehicle (
 
 -- ================================================================================================
 -- TABLES DE DÉTAILS (Join Tables)
--- Lient des informations additionnelles au véhicule.
 -- ================================================================================================
 
 CREATE TABLE VehicleAmenity (
@@ -167,7 +151,7 @@ CREATE TABLE VehicleIllustrationImage (
 );
 
 CREATE TABLE VehicleReview (
-    review_id UUID PRIMARY KEY, -- ID unique de la review (provenant d'un service externe)
+    review_id UUID PRIMARY KEY,
     vehicle_id UUID NOT NULL REFERENCES Vehicle(vehicle_id) ON DELETE CASCADE
 );
 
@@ -178,8 +162,6 @@ CREATE TABLE VehicleReview (
 CREATE TABLE VehicleOwnership (
     vehicle_ownership_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     vehicle_id UUID NOT NULL REFERENCES Vehicle(vehicle_id) ON DELETE CASCADE,
-    -- party_id est l'ID de l'utilisateur du service d'authentification externe
-    -- Pas de clé étrangère car géré par un service externe
     party_id UUID NOT NULL,
     usage_role TEXT NOT NULL CHECK (usage_role IN ('DRIVER', 'LOGISTICS', 'FLEET', 'OWNER')),
     is_primary BOOLEAN DEFAULT false,

@@ -1,10 +1,14 @@
 package com.yowyob.template.infrastructure.adapters.outbound.persistence.repository;
 
 import com.yowyob.template.infrastructure.adapters.outbound.persistence.entity.VehicleSizeEntity;
+
+import reactor.core.publisher.Mono;
+
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
 import java.util.UUID;
 
 @Repository
 public interface VehicleSizeR2dbcRepository extends ReactiveCrudRepository<VehicleSizeEntity, UUID> {
+    Mono<VehicleSizeEntity> findBySizeName(String sizeName);
 }
