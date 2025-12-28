@@ -1,5 +1,5 @@
 Project Context From: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service
-Generated On: ven. 26 déc. 2025 09:28:28 WAT
+Generated On: dim. 28 déc. 2025 07:58:01 WAT
 ===============================================
 Ignored Directory Patterns: .* node_modules vendor build dist target __pycache__ .next cache target storage
 Ignored File Patterns: *.log *.jar *.pdf *.class *.sqlite project_context.txt package-lock.json yarn.lock composer.lock *.ico pnpm-lock.yaml
@@ -2180,36 +2180,73 @@ public class VehicleOwnershipService implements ManageVehicleOwnershipUseCase {
 
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/application/service/VehicleService.java
 
+//---> PATH: src/main/java/com/yowyob/template/application/service/VehicleService.java
 package com.yowyob.template.application.service;
 
-import org.springframework.stereotype.Service;
-
+import com.yowyob.template.domain.exception.NotFoundException;
 import com.yowyob.template.domain.model.vehicle.Vehicle;
-import com.yowyob.template.domain.ports.in.CreateVehicleUseCase;
+import com.yowyob.template.domain.ports.in.ManageVehicleUseCase;
 import com.yowyob.template.domain.ports.out.VehicleRepositoryPort;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.UUID;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class VehicleService implements CreateVehicleUseCase {
+public class VehicleService implements ManageVehicleUseCase {
 
     public final VehicleRepositoryPort repositoryPort;
 
     @Override
     public Mono<Vehicle> createVehicle(Vehicle vehicle) {
-
-        log.info("vehicule en cours de sauvegarde");
-
+        log.info("Création du véhicule : {}", vehicle.registrationNumber());
         return repositoryPort.saveVehicle(vehicle);
-
     }
 
-}
-// END OF FILE: src/main/java/com/yowyob/template/application/service/VehicleService.java
+    @Override
+    public Mono<Vehicle> updateVehicle(Vehicle vehicle) {
+        return repositoryPort.findVehicleById(vehicle.vehicleId())
+                .switchIfEmpty(Mono.error(new NotFoundException("Véhicule non trouvé avec l'ID : " + vehicle.vehicleId())))
+                .flatMap(existingVehicle -> {
+                    // Ici, on sauvegarde directement car l'objet 'vehicle' contient déjà l'ID.
+                    // R2DBC fera un update.
+                    log.info("Mise à jour du véhicule : {}", vehicle.vehicleId());
+                    return repositoryPort.saveVehicle(vehicle);
+                });
+    }
+
+    @Override
+    public Flux<Vehicle> getAllVehicles() {
+        return repositoryPort.findAllVehicles();
+    }
+    @Override
+    public Flux<Vehicle> getVehiclesByOwner(UUID partyId) {
+        log.info("Récupération des véhicules pour le propriétaire : {}", partyId);
+        return repositoryPort.findVehiclesByPartyId(partyId);
+    }
+
+    @Override
+    public Mono<Vehicle> getVehicleById(UUID id) {
+        return repositoryPort.findVehicleById(id)
+                .switchIfEmpty(Mono.error(new NotFoundException("Véhicule non trouvé avec l'ID : " + id)));
+    }
+
+
+    @Override
+    public Mono<Void> deleteVehicle(UUID id) {
+        return repositoryPort.findVehicleById(id)
+                .switchIfEmpty(Mono.error(new NotFoundException("Impossible de supprimer. Véhicule non trouvé avec l'ID : " + id)))
+                .flatMap(v -> {
+                    log.info("Suppression du véhicule : {}", id);
+                    return repositoryPort.deleteVehicle(id);
+                });
+    }
+}// END OF FILE: src/main/java/com/yowyob/template/application/service/VehicleService.java
 
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/domain/exception/NotFoundException.java
 
@@ -2501,21 +2538,6 @@ public interface CreateProductUseCase {
     Mono<Product> createProduct(Product product);
 }// END OF FILE: src/main/java/com/yowyob/template/domain/ports/in/CreateProductUseCase.java
 
-//---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/domain/ports/in/CreateVehicleUseCase.java
-
-package com.yowyob.template.domain.ports.in;
-
-import com.yowyob.template.domain.model.vehicle.Vehicle;
-
-import reactor.core.publisher.Mono;
-
-public interface CreateVehicleUseCase {
-
-    Mono<Vehicle> createVehicle(Vehicle vehicle);
-
-}
-// END OF FILE: src/main/java/com/yowyob/template/domain/ports/in/CreateVehicleUseCase.java
-
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/domain/ports/in/ManageVehicleDetailsUseCase.java
 
 package com.yowyob.template.domain.ports.in;
@@ -2659,6 +2681,32 @@ public interface ManageVehicleOwnershipUseCase {
     Mono<Void> deleteOwnership(UUID id);
 }
 // END OF FILE: src/main/java/com/yowyob/template/domain/ports/in/ManageVehicleOwnershipUseCase.java
+
+//---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/domain/ports/in/ManageVehicleUseCase.java
+
+//---> PATH: src/main/java/com/yowyob/template/domain/ports/in/ManageVehicleUseCase.java
+package com.yowyob.template.domain.ports.in;
+
+import com.yowyob.template.domain.model.vehicle.Vehicle;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.util.UUID;
+
+public interface ManageVehicleUseCase {
+
+    Mono<Vehicle> createVehicle(Vehicle vehicle);
+
+    Mono<Vehicle> updateVehicle(Vehicle vehicle);
+
+    Flux<Vehicle> getAllVehicles();
+
+    Flux<Vehicle> getVehiclesByOwner(UUID partyId);
+
+    Mono<Vehicle> getVehicleById(UUID id);
+
+    Mono<Void> deleteVehicle(UUID id);
+}// END OF FILE: src/main/java/com/yowyob/template/domain/ports/in/ManageVehicleUseCase.java
 
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/domain/ports/out/ProductCachePort.java
 
@@ -2853,18 +2901,27 @@ public interface VehicleOwnershipRepositoryPort {
 
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/domain/ports/out/VehicleRepositoryPort.java
 
+//---> PATH: src/main/java/com/yowyob/template/domain/ports/out/VehicleRepositoryPort.java
 package com.yowyob.template.domain.ports.out;
 
 import com.yowyob.template.domain.model.vehicle.Vehicle;
-
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.UUID;
 
 public interface VehicleRepositoryPort {
 
     Mono<Vehicle> saveVehicle(Vehicle vehicle);
 
-}
-// END OF FILE: src/main/java/com/yowyob/template/domain/ports/out/VehicleRepositoryPort.java
+    Flux<Vehicle> findAllVehicles();
+
+    Flux<Vehicle> findVehiclesByPartyId(UUID partyId);
+
+    Mono<Vehicle> findVehicleById(UUID id);
+
+    Mono<Void> deleteVehicle(UUID id);
+}// END OF FILE: src/main/java/com/yowyob/template/domain/ports/out/VehicleRepositoryPort.java
 
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/infrastructure/adapters/inbound/kafka/ProductEventConsumer.java
 
@@ -3301,6 +3358,90 @@ import java.util.UUID;
 
 public record ProductResponse(UUID id, String name, BigDecimal price, String status) {}// END OF FILE: src/main/java/com/yowyob/template/infrastructure/adapters/inbound/rest/dto/ProductResponse.java
 
+//---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/infrastructure/adapters/inbound/rest/dto/SimplifiedVehicleRequest.java
+
+package com.yowyob.template.infrastructure.adapters.inbound.rest.dto;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import java.math.BigDecimal;
+
+public record SimplifiedVehicleRequest(
+    
+    @NotBlank
+    @Schema(description = "Marque du véhicule", example = "Toyota", 
+            allowableValues = {"Toyota", "Honda", "Ford", "Tesla", "BMW", "Mercedes"})
+    String makeName,
+
+    @NotBlank
+    @Schema(description = "Modèle du véhicule", example = "Corolla", 
+            allowableValues = {"Corolla", "Yaris", "Model 3", "X5", "Civic"})
+    String modelName,
+
+    @NotBlank
+    @Schema(description = "Type de transmission", example = "Automatique", 
+            allowableValues = {"Manuelle", "Automatique", "Séquentielle"})
+    String transmissionType,
+
+    @NotBlank
+    @Schema(description = "Fabricant (Usine)", example = "Toyota Factory", 
+            allowableValues = {"Toyota Factory", "Tesla Gigafactory", "BMW Group"})
+    String manufacturerName,
+
+    @NotBlank
+    @Schema(description = "Taille/Gabarit", example = "Berline", 
+            allowableValues = {"Compacte", "SUV", "Berline", "Utilitaire"})
+    String sizeName,
+
+    @NotBlank
+    @Schema(description = "Usage/Type", example = "Personnel", 
+            allowableValues = {"Personnel", "Commercial", "Transport"})
+    String typeName,
+
+    @NotBlank
+    @Schema(description = "Carburant", example = "Essence", 
+            allowableValues = {"Essence", "Diesel", "Electrique", "Hybride"})
+    String fuelTypeName,
+
+    // --- Les champs libres (Texte ou Nombre) ---
+
+    @Schema(description = "Numéro de série (VIN)", example = "SN-123456789")
+    String vehicleSerialNumber,
+
+    @Schema(description = "URL de la photo du numéro de série", example = "http://image.com/serial.jpg")
+    String vehicleSerialPhoto,
+
+    @Schema(description = "Plaque d'immatriculation", example = "LT-001-AB")
+    String registrationNumber,
+
+    @Schema(description = "URL de la photo de la carte grise", example = "http://image.com/reg.jpg")
+    String registrationPhoto,
+
+    @Schema(description = "Capacité du réservoir (Litres ou kWh)", example = "50")
+    BigDecimal tankCapacity,
+
+    @Schema(description = "Capacité max des bagages (kg)", example = "400")
+    BigDecimal luggageMaxCapacity,
+
+    @Schema(description = "Nombre total de sièges", example = "5")
+    Integer totalSeatNumber,
+
+    @Schema(description = "Consommation moyenne (L/100km ou kWh/100km)", example = "5.5")
+    BigDecimal averageFuelConsumptionPerKm,
+
+    @Schema(description = "Kilométrage initial", example = "0")
+    BigDecimal mileageAtStart,
+
+    @Schema(description = "Kilométrage actuel", example = "100")
+    BigDecimal mileageSinceCommissioning,
+
+    @Schema(description = "Âge du véhicule au début (années)", example = "0")
+    BigDecimal vehicleAgeAtStart,
+
+    @Schema(description = "Marque commerciale (souvent idem que Make)", example = "Toyota")
+    String brand
+) {}// END OF FILE: src/main/java/com/yowyob/template/infrastructure/adapters/inbound/rest/dto/SimplifiedVehicleRequest.java
+
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/infrastructure/adapters/inbound/rest/dto/VehicleRequest.java
 
 package com.yowyob.template.infrastructure.adapters.inbound.rest.dto;
@@ -3549,53 +3690,163 @@ public class ProductController {
 
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/infrastructure/adapters/inbound/rest/VehicleController.java
 
+//---> PATH: src/main/java/com/yowyob/template/infrastructure/adapters/inbound/rest/VehicleController.java
 package com.yowyob.template.infrastructure.adapters.inbound.rest;
 
-import org.apache.kafka.clients.admin.CreateAclsOptions;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
-
 import com.yowyob.template.domain.model.vehicle.Vehicle;
-import com.yowyob.template.domain.ports.in.CreateVehicleUseCase;
+import com.yowyob.template.domain.ports.in.ManageVehicleUseCase;
+import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.SimplifiedVehicleRequest;
 import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.VehicleRequest;
 import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.VehicleResponse;
 import com.yowyob.template.infrastructure.mappers.VehicleMapper;
+import com.yowyob.template.infrastructure.security.AuthenticatedUser;
+import com.yowyob.template.infrastructure.service.VehicleSmartCreationService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import reactor.core.publisher.Mono;
+import org.springdoc.core.annotations.ParameterObject;
 
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.SimplifiedVehicleRequest;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/vehicles")
 @RequiredArgsConstructor
 public class VehicleController {
 
-    public final CreateVehicleUseCase createVehicleUseCase;
-    public final VehicleMapper mapper;
+    private final ManageVehicleUseCase manageVehicleUseCase;
+    private final VehicleMapper mapper;
+    private final VehicleSmartCreationService smartCreationService; // Injecter le nouveau service
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Créer un véhicule")
+    @Operation(summary = "Créer un véhicule", description = "Crée un nouveau véhicule dans le système.")
+    @SecurityRequirement(name = "bearerAuth")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Véhicule créé avec succès"),
             @ApiResponse(responseCode = "400", description = "Requête invalide")
     })
-    public Mono<VehicleResponse> createVehicle(@RequestBody VehicleRequest vehicleRequest) {
+    public Mono<VehicleResponse> createVehicle(@Valid @RequestBody VehicleRequest vehicleRequest) {
         return Mono.just(mapper.toDomain(vehicleRequest))
-                .flatMap(createVehicleUseCase::createVehicle)
+                .flatMap(manageVehicleUseCase::createVehicle)
                 .map(mapper::toResponse);
     }
 
-}
-// END OF FILE: src/main/java/com/yowyob/template/infrastructure/adapters/inbound/rest/VehicleController.java
+    @GetMapping
+    @Operation(summary = "Lister mes véhicules", description = "Retourne uniquement les véhicules dont je suis propriétaire/utilisateur.")
+    @SecurityRequirement(name = "bearerAuth")
+    public Flux<VehicleResponse> getMyVehicles(@AuthenticationPrincipal AuthenticatedUser user) {
+        // Sécurité défensive : Vérifier que l'utilisateur est bien injecté
+        if (user == null || user.getId() == null) {
+            return Flux.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Utilisateur non identifié"));
+        }
+
+        // On récupère l'ID depuis le token
+        UUID partyId = UUID.fromString(user.getId());
+
+        // On appelle le cas d'utilisation filtré par propriétaire
+        return manageVehicleUseCase.getVehiclesByOwner(partyId)
+                .map(mapper::toResponse);
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Obtenir un véhicule par son ID")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Véhicule trouvé"),
+            @ApiResponse(responseCode = "404", description = "Véhicule non trouvé")
+    })
+    public Mono<VehicleResponse> getVehicleById(@PathVariable UUID id) {
+        return manageVehicleUseCase.getVehicleById(id)
+                .map(mapper::toResponse);
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "Mettre à jour un véhicule complet")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Véhicule mis à jour"),
+            @ApiResponse(responseCode = "404", description = "Véhicule non trouvé")
+    })
+    public Mono<VehicleResponse> updateVehicle(
+            @Parameter(description = "ID du véhicule à mettre à jour") @PathVariable UUID id,
+            @Valid @RequestBody VehicleRequest vehicleRequest) {
+        
+        // On convertit le DTO en Domain
+        Vehicle domainVehicle = mapper.toDomain(vehicleRequest);
+        
+        // On force l'ID du path sur l'objet domaine pour s'assurer qu'on met à jour le bon
+        // Note: Comme 'Vehicle' est un Java Record (immuable), on doit recréer l'objet.
+        Vehicle vehicleWithId = new Vehicle(
+                id, // L'ID du path
+                domainVehicle.vehicleMakeId(),
+                domainVehicle.vehicleModelId(),
+                domainVehicle.transmissionTypeId(),
+                domainVehicle.manufacturerId(),
+                domainVehicle.vehicleSizeId(),
+                domainVehicle.vehicleTypeId(),
+                domainVehicle.fuelTypeId(),
+                domainVehicle.vehicleSerialNumber(),
+                domainVehicle.vehicleSerialPhoto(),
+                domainVehicle.registrationNumber(),
+                domainVehicle.registrationPhoto(),
+                domainVehicle.registrationExpiryDate(),
+                domainVehicle.tankCapacity(),
+                domainVehicle.luggageMaxCapacity(),
+                domainVehicle.totalSeatNumber(),
+                domainVehicle.averageFuelConsumptionPerKm(),
+                domainVehicle.mileageAtStart(),
+                domainVehicle.mileageSinceCommissioning(),
+                domainVehicle.vehicleAgeAtStart(),
+                domainVehicle.brand(),
+                domainVehicle.createdAt(), // Gardé tel quel (géré par DB ou ignoré à l'update)
+                domainVehicle.updatedAt()
+        );
+
+        return manageVehicleUseCase.updateVehicle(vehicleWithId)
+                .map(mapper::toResponse);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Supprimer un véhicule")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Véhicule supprimé"),
+            @ApiResponse(responseCode = "404", description = "Véhicule non trouvé")
+    })
+    public Mono<Void> deleteVehicle(@PathVariable UUID id) {
+        return manageVehicleUseCase.deleteVehicle(id);
+    }
+
+
+    
+
+    @PostMapping("/simplified")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Créer un véhicule (Mode Simplifié)", 
+               description = "Utilise des listes déroulantes pour faciliter la sélection.")
+    @SecurityRequirement(name = "bearerAuth")
+    public Mono<VehicleResponse> createVehicleSimplified(
+            // REMPLACEZ @Valid @RequestBody PAR @ParameterObject @Valid
+            @ParameterObject @Valid SimplifiedVehicleRequest request) {
+        
+        return smartCreationService.createVehicleFromNames(request)
+                .map(mapper::toResponse);
+    }
+}// END OF FILE: src/main/java/com/yowyob/template/infrastructure/adapters/inbound/rest/VehicleController.java
 
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/infrastructure/adapters/inbound/rest/VehicleDetailsController.java
 
@@ -4052,7 +4303,7 @@ public class VehicleOwnershipController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create Vehicle Ownership", description = "Crée une ownership de véhicule. Le partyId est automatiquement récupéré depuis l'utilisateur authentifié.")
-    @SecurityRequirement(name = "bearer-jwt")
+    @SecurityRequirement(name = "bearerAuth")
     public Mono<VehicleOwnershipResponse> createOwnership(
             @Valid @RequestBody VehicleOwnershipRequest request,
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
@@ -4082,7 +4333,7 @@ public class VehicleOwnershipController {
 
     @GetMapping("/me")
     @Operation(summary = "Get My Ownerships", description = "Récupère les ownerships de l'utilisateur connecté")
-    @SecurityRequirement(name = "bearer-jwt")
+    @SecurityRequirement(name = "bearerAuth")
     public Flux<VehicleOwnershipResponse> getMyOwnerships(
             @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
         if (authenticatedUser == null || authenticatedUser.getId() == null) {
@@ -4816,37 +5067,59 @@ public class PostgresR2dbcAdapter implements ProductRepositoryPort {
 
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/infrastructure/adapters/outbound/persistence/PostgreVehicleAdapter.java
 
+//---> PATH: src/main/java/com/yowyob/template/infrastructure/adapters/outbound/persistence/PostgreVehicleAdapter.java
 package com.yowyob.template.infrastructure.adapters.outbound.persistence;
-
-import org.springframework.stereotype.Component;
 
 import com.yowyob.template.domain.model.vehicle.Vehicle;
 import com.yowyob.template.domain.ports.out.VehicleRepositoryPort;
 import com.yowyob.template.infrastructure.adapters.outbound.persistence.repository.VehicleR2dbcRepository;
 import com.yowyob.template.infrastructure.mappers.VehicleMapper;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
 public class PostgreVehicleAdapter implements VehicleRepositoryPort {
 
     private final VehicleR2dbcRepository repository;
-
     private final VehicleMapper mapper;
 
     @Override
     public Mono<Vehicle> saveVehicle(Vehicle vehicle) {
-
+        // Le mapper gère la conversion. Si vehicle.vehicleId est présent, 
+        // l'entité aura l'ID, et R2DBC fera un UPDATE (isNew() = false).
+        // Si c'est null, R2DBC fera un INSERT.
         return Mono.just(mapper.toEntity(vehicle))
                 .flatMap(repository::save)
                 .map(mapper::toDomain);
-
     }
 
-}
-// END OF FILE: src/main/java/com/yowyob/template/infrastructure/adapters/outbound/persistence/PostgreVehicleAdapter.java
+    @Override
+    public Flux<Vehicle> findAllVehicles() {
+        return repository.findAll()
+                .map(mapper::toDomain);
+    }
+    @Override
+    public Flux<Vehicle> findVehiclesByPartyId(UUID partyId) {
+        return repository.findByPartyId(partyId)
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public Mono<Vehicle> findVehicleById(UUID id) {
+        return repository.findById(id)
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public Mono<Void> deleteVehicle(UUID id) {
+        return repository.deleteById(id);
+    }
+}// END OF FILE: src/main/java/com/yowyob/template/infrastructure/adapters/outbound/persistence/PostgreVehicleAdapter.java
 
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/infrastructure/adapters/outbound/persistence/PostgreVehicleDetailsAdapter.java
 
@@ -5277,12 +5550,16 @@ public class PostgreVehicleOwnershipAdapter implements VehicleOwnershipRepositor
 package com.yowyob.template.infrastructure.adapters.outbound.persistence.repository;
 
 import com.yowyob.template.infrastructure.adapters.outbound.persistence.entity.FuelTypeEntity;
+
+import reactor.core.publisher.Mono;
+
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
 import java.util.UUID;
 
 @Repository
 public interface FuelTypeR2dbcRepository extends ReactiveCrudRepository<FuelTypeEntity, UUID> {
+    Mono<FuelTypeEntity> findByFuelTypeName(String fuelTypeName);
 }
 // END OF FILE: src/main/java/com/yowyob/template/infrastructure/adapters/outbound/persistence/repository/FuelTypeR2dbcRepository.java
 
@@ -5291,13 +5568,18 @@ public interface FuelTypeR2dbcRepository extends ReactiveCrudRepository<FuelType
 package com.yowyob.template.infrastructure.adapters.outbound.persistence.repository;
 
 import com.yowyob.template.infrastructure.adapters.outbound.persistence.entity.ManufacturerEntity;
+
+import reactor.core.publisher.Mono;
+
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
 import java.util.UUID;
 
 @Repository
 public interface ManufacturerR2dbcRepository extends ReactiveCrudRepository<ManufacturerEntity, UUID> {
+    Mono<ManufacturerEntity> findByManufacturerName(String manufacturerName);
 }
+
 // END OF FILE: src/main/java/com/yowyob/template/infrastructure/adapters/outbound/persistence/repository/ManufacturerR2dbcRepository.java
 
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/infrastructure/adapters/outbound/persistence/repository/ProductR2dbcRepository.java
@@ -5315,12 +5597,16 @@ public interface ProductR2dbcRepository extends ReactiveCrudRepository<ProductEn
 package com.yowyob.template.infrastructure.adapters.outbound.persistence.repository;
 
 import com.yowyob.template.infrastructure.adapters.outbound.persistence.entity.TransmissionTypeEntity;
+
+import reactor.core.publisher.Mono;
+
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
 import java.util.UUID;
 
 @Repository
 public interface TransmissionTypeR2dbcRepository extends ReactiveCrudRepository<TransmissionTypeEntity, UUID> {
+    Mono<TransmissionTypeEntity> findByTypeName(String typeName);
 }
 // END OF FILE: src/main/java/com/yowyob/template/infrastructure/adapters/outbound/persistence/repository/TransmissionTypeR2dbcRepository.java
 
@@ -5394,12 +5680,16 @@ public interface VehicleKeywordR2dbcRepository extends ReactiveCrudRepository<Ve
 package com.yowyob.template.infrastructure.adapters.outbound.persistence.repository;
 
 import com.yowyob.template.infrastructure.adapters.outbound.persistence.entity.VehicleMakeEntity;
+
+import reactor.core.publisher.Mono;
+
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
 import java.util.UUID;
 
 @Repository
 public interface VehicleMakeR2dbcRepository extends ReactiveCrudRepository<VehicleMakeEntity, UUID> {
+    Mono<VehicleMakeEntity> findByMakeName(String makeName);
 }
 // END OF FILE: src/main/java/com/yowyob/template/infrastructure/adapters/outbound/persistence/repository/VehicleMakeR2dbcRepository.java
 
@@ -5408,12 +5698,16 @@ public interface VehicleMakeR2dbcRepository extends ReactiveCrudRepository<Vehic
 package com.yowyob.template.infrastructure.adapters.outbound.persistence.repository;
 
 import com.yowyob.template.infrastructure.adapters.outbound.persistence.entity.VehicleModelEntity;
+
+import reactor.core.publisher.Mono;
+
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
 import java.util.UUID;
 
 @Repository
 public interface VehicleModelR2dbcRepository extends ReactiveCrudRepository<VehicleModelEntity, UUID> {
+    Mono<VehicleModelEntity> findByModelName(String modelName);
 }
 // END OF FILE: src/main/java/com/yowyob/template/infrastructure/adapters/outbound/persistence/repository/VehicleModelR2dbcRepository.java
 
@@ -5441,13 +5735,20 @@ package com.yowyob.template.infrastructure.adapters.outbound.persistence.reposit
 
 import java.util.UUID;
 
+import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
 
 import com.yowyob.template.infrastructure.adapters.outbound.persistence.entity.VehicleEntity;
 
+import reactor.core.publisher.Flux;
+
 @Repository
 public interface VehicleR2dbcRepository extends ReactiveCrudRepository<VehicleEntity, UUID> {
+    @Query("SELECT v.* FROM Vehicle v " +
+           "INNER JOIN VehicleOwnership vo ON v.vehicle_id = vo.vehicle_id " +
+           "WHERE vo.party_id = :partyId")
+    Flux<VehicleEntity> findByPartyId(UUID partyId);
 
 }
 // END OF FILE: src/main/java/com/yowyob/template/infrastructure/adapters/outbound/persistence/repository/VehicleR2dbcRepository.java
@@ -5473,12 +5774,16 @@ public interface VehicleReviewR2dbcRepository extends ReactiveCrudRepository<Veh
 package com.yowyob.template.infrastructure.adapters.outbound.persistence.repository;
 
 import com.yowyob.template.infrastructure.adapters.outbound.persistence.entity.VehicleSizeEntity;
+
+import reactor.core.publisher.Mono;
+
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
 import java.util.UUID;
 
 @Repository
 public interface VehicleSizeR2dbcRepository extends ReactiveCrudRepository<VehicleSizeEntity, UUID> {
+    Mono<VehicleSizeEntity> findBySizeName(String sizeName);
 }
 // END OF FILE: src/main/java/com/yowyob/template/infrastructure/adapters/outbound/persistence/repository/VehicleSizeR2dbcRepository.java
 
@@ -5487,12 +5792,16 @@ public interface VehicleSizeR2dbcRepository extends ReactiveCrudRepository<Vehic
 package com.yowyob.template.infrastructure.adapters.outbound.persistence.repository;
 
 import com.yowyob.template.infrastructure.adapters.outbound.persistence.entity.VehicleTypeEntity;
+
+import reactor.core.publisher.Mono;
+
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
 import java.util.UUID;
 
 @Repository
 public interface VehicleTypeR2dbcRepository extends ReactiveCrudRepository<VehicleTypeEntity, UUID> {
+    Mono<VehicleTypeEntity> findByTypeName(String typeName);
 }
 // END OF FILE: src/main/java/com/yowyob/template/infrastructure/adapters/outbound/persistence/repository/VehicleTypeR2dbcRepository.java
 
@@ -6258,39 +6567,18 @@ public class AuthServiceClient {
      * @return Mono<AuthenticatedUser> si le token est valide, Mono.empty() sinon
      */
     public Mono<AuthenticatedUser> verifyToken(String token) {
-        log.debug("Vérification du token auprès du service d'authentification");
-        
-        return webClient.get()
-                .uri("/api/auth/me")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-                .retrieve()
-                .onStatus(HttpStatusCode::is4xxClientError, response -> {
-                    log.warn("Token invalide ou expiré: {}", response.statusCode());
-                    // Retourner une erreur spécifique pour les tokens invalides
-                    return Mono.error(new InvalidTokenException("Token invalide ou expiré"));
-                })
-                .onStatus(HttpStatusCode::is5xxServerError, response -> {
-                    log.error("Erreur du service d'authentification: {}", response.statusCode());
-                    return Mono.error(new RuntimeException("Auth service unavailable"));
-                })
-                .bodyToMono(AuthUserResponse.class)
-                .map(this::mapToAuthenticatedUser)
-                .doOnSuccess(user -> {
-                    if (user != null) {
-                        log.debug("Token valide pour l'utilisateur: {}", user.getUsername());
-                    }
-                })
-                .onErrorResume(InvalidTokenException.class, e -> {
-                    // Pour les tokens invalides, retourner Mono.empty() (401 sera géré par le filtre)
-                    log.debug("Token invalide détecté: {}", e.getMessage());
-                    return Mono.empty();
-                })
-                .onErrorResume(e -> {
-                    log.error("Erreur lors de la vérification du token: {}", e.getMessage());
-                    return Mono.empty();
-                });
-    }
-    
+    return webClient.get()
+            .uri("/api/auth/me")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+            .retrieve()
+            .onStatus(HttpStatusCode::is4xxClientError, response -> Mono.error(new InvalidTokenException("Token invalide")))
+            .onStatus(HttpStatusCode::is5xxServerError, response -> Mono.error(new RuntimeException("Erreur serveur auth")))
+            .bodyToMono(AuthUserResponse.class)
+            .map(this::mapToAuthenticatedUser)
+            // AJOUTER CE LOG POUR VOIR L'ERREUR RÉELLE
+            .doOnError(e -> log.error("ERREUR AUTH SERVICE : {} - {}", e.getClass().getSimpleName(), e.getMessage())) 
+            .onErrorResume(e -> Mono.empty());
+   }
     /**
      * Exception interne pour les tokens invalides
      */
@@ -6340,6 +6628,8 @@ public record AuthUserResponse(
 
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/infrastructure/security/JwtAuthenticationFilter.java
 
+//---> PATH: src/main/java/com/yowyob/template/infrastructure/security/JwtAuthenticationFilter.java
+
 package com.yowyob.template.infrastructure.security;
 
 import org.slf4j.Logger;
@@ -6377,11 +6667,14 @@ public class JwtAuthenticationFilter implements WebFilter {
         this.authServiceClient = authServiceClient;
     }
 
+    // Exception interne pour contrôler le flux réactif sans exposer d'erreur système
+    private static class TokenInvalidException extends RuntimeException {}
+
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         String token = extractToken(exchange.getRequest());
         
-        // Si pas de token, laisser passer (Spring Security décidera si l'endpoint est protégé)
+        // 1. Si pas de token, on laisse passer (la config Security décidera si c'est public ou non)
         if (token == null) {
             log.debug("Pas de token trouvé, laisse passer la requête: {}", exchange.getRequest().getPath());
             return chain.filter(exchange);
@@ -6389,10 +6682,12 @@ public class JwtAuthenticationFilter implements WebFilter {
 
         log.debug("Token trouvé, vérification auprès du service d'auth pour: {}", exchange.getRequest().getPath());
 
-        // Token présent -> vérifier auprès du service d'auth AVANT de continuer
         return authServiceClient.verifyToken(token)
+                // 2. Si verifyToken renvoie empty (token invalide), on lève une erreur spécifique ICI
+                .switchIfEmpty(Mono.error(new TokenInvalidException()))
+                
+                // 3. Si on arrive ici, c'est que le token est valide (user n'est pas null)
                 .flatMap(authenticatedUser -> {
-                    // Token valide -> continuer avec l'authentification
                     log.debug("Token valide pour l'utilisateur: {}", authenticatedUser.getId());
                     JwtAuthenticationToken authentication = new JwtAuthenticationToken(
                             authenticatedUser,
@@ -6400,12 +6695,14 @@ public class JwtAuthenticationFilter implements WebFilter {
                             authenticatedUser.getAuthorities()
                     );
                     
+                    // On injecte l'authentification et on passe la main au contrôleur
                     return chain.filter(exchange)
                             .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication));
                 })
-                // Si token invalide/expiré (Mono.empty() retourné par authServiceClient)
-                // -> BLOQUER immédiatement avec 401
-                .switchIfEmpty(handleUnauthorized(exchange));
+                
+                // 4. On attrape uniquement l'erreur "TokenInvalidException" pour renvoyer le 401
+                // Les autres erreurs (ex: contrôleur qui crash) ne passeront pas par ici.
+                .onErrorResume(TokenInvalidException.class, e -> handleUnauthorized(exchange));
     }
     
     /**
@@ -6419,7 +6716,6 @@ public class JwtAuthenticationFilter implements WebFilter {
         
         // Vérifier si la réponse n'est pas déjà committed
         if (response.isCommitted()) {
-            log.error("La réponse est déjà committed, impossible de renvoyer 401");
             return Mono.empty();
         }
         
@@ -6442,8 +6738,7 @@ public class JwtAuthenticationFilter implements WebFilter {
         
         return null;
     }
-}
-// END OF FILE: src/main/java/com/yowyob/template/infrastructure/security/JwtAuthenticationFilter.java
+}// END OF FILE: src/main/java/com/yowyob/template/infrastructure/security/JwtAuthenticationFilter.java
 
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/infrastructure/security/JwtAuthenticationToken.java
 
@@ -6563,6 +6858,101 @@ public class SecurityConfig {
 }
 // END OF FILE: src/main/java/com/yowyob/template/infrastructure/security/SecurityConfig.java
 
+//---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/infrastructure/service/VehicleSmartCreationService.java
+
+package com.yowyob.template.infrastructure.service;
+
+import com.yowyob.template.domain.model.vehicle.Vehicle;
+import com.yowyob.template.domain.ports.in.ManageVehicleUseCase;
+import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.SimplifiedVehicleRequest;
+import com.yowyob.template.infrastructure.adapters.outbound.persistence.repository.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
+import reactor.core.publisher.Mono;
+import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.SimplifiedVehicleRequest;
+
+@Service
+@RequiredArgsConstructor
+public class VehicleSmartCreationService {
+
+    private final ManageVehicleUseCase manageVehicleUseCase;
+    
+    // Repositories pour faire les lookups
+    private final VehicleMakeR2dbcRepository makeRepo;
+    private final VehicleModelR2dbcRepository modelRepo;
+    private final TransmissionTypeR2dbcRepository transmissionRepo;
+    private final ManufacturerR2dbcRepository manufacturerRepo;
+    private final VehicleSizeR2dbcRepository sizeRepo;
+    private final VehicleTypeR2dbcRepository typeRepo;
+    private final FuelTypeR2dbcRepository fuelRepo;
+
+    public Mono<Vehicle> createVehicleFromNames(SimplifiedVehicleRequest request) {
+        
+        // On lance tous les lookups en parallèle avec Mono.zip
+        return Mono.zip(
+            makeRepo.findByMakeName(request.makeName())
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Marque inconnue: " + request.makeName()))),
+            
+            modelRepo.findByModelName(request.modelName())
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Modèle inconnu: " + request.modelName()))),
+            
+            transmissionRepo.findByTypeName(request.transmissionType())
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Transmission inconnue: " + request.transmissionType()))),
+            
+            manufacturerRepo.findByManufacturerName(request.manufacturerName())
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Fabricant inconnu: " + request.manufacturerName()))),
+            
+            sizeRepo.findBySizeName(request.sizeName())
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Taille inconnue: " + request.sizeName()))),
+            
+            typeRepo.findByTypeName(request.typeName())
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Type véhicule inconnu: " + request.typeName()))),
+            
+            fuelRepo.findByFuelTypeName(request.fuelTypeName())
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Carburant inconnu: " + request.fuelTypeName())))
+        ).flatMap(tuple -> {
+            // Une fois qu'on a toutes les entités, on construit l'objet Vehicle du domaine
+            var make = tuple.getT1();
+            var model = tuple.getT2();
+            var trans = tuple.getT3();
+            var manuf = tuple.getT4();
+            var size = tuple.getT5();
+            var type = tuple.getT6();
+            var fuel = tuple.getT7();
+
+            Vehicle vehicle = new Vehicle(
+                null, // ID généré
+                make.getVehicleMakeId(),
+                model.getVehicleModelId(),
+                trans.getTransmissionTypeId(),
+                manuf.getManufacturerId(),
+                size.getVehicleSizeId(),
+                type.getVehicleTypeId(),
+                fuel.getFuelTypeId(),
+                request.vehicleSerialNumber(),
+                request.vehicleSerialPhoto(),
+                request.registrationNumber(),
+                request.registrationPhoto(),
+                null, // Expiry date
+                request.tankCapacity(),
+                request.luggageMaxCapacity(),
+                request.totalSeatNumber(),
+                request.averageFuelConsumptionPerKm(),
+                request.mileageAtStart(),
+                request.mileageSinceCommissioning(),
+                request.vehicleAgeAtStart(),
+                request.brand(),
+                null, null
+            );
+
+            // On délègue au UseCase standard
+            return manageVehicleUseCase.createVehicle(vehicle);
+        });
+    }
+}// END OF FILE: src/main/java/com/yowyob/template/infrastructure/service/VehicleSmartCreationService.java
+
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/TemplateApplication.java
 
 package com.yowyob.template;
@@ -6663,6 +7053,52 @@ resilience4j:
         slidingWindowSize: 5
 // END OF FILE: src/main/resources/application.yml
 
+//---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/resources/data.sql
+
+-- INSERTION DES DONNÉES DE RÉFÉRENCE (Seulement si la table est vide ou pour éviter les doublons)
+
+-- 1. Fuel Types
+INSERT INTO FuelType (fuel_type_name) VALUES ('Essence') ON CONFLICT DO NOTHING;
+INSERT INTO FuelType (fuel_type_name) VALUES ('Diesel') ON CONFLICT DO NOTHING;
+INSERT INTO FuelType (fuel_type_name) VALUES ('Electrique') ON CONFLICT DO NOTHING;
+INSERT INTO FuelType (fuel_type_name) VALUES ('Hybride') ON CONFLICT DO NOTHING;
+
+-- 2. Manufacturers
+INSERT INTO Manufacturer (manufacturer_name) VALUES ('Toyota Factory') ON CONFLICT DO NOTHING;
+INSERT INTO Manufacturer (manufacturer_name) VALUES ('Tesla Gigafactory') ON CONFLICT DO NOTHING;
+INSERT INTO Manufacturer (manufacturer_name) VALUES ('BMW Group') ON CONFLICT DO NOTHING;
+
+-- 3. Vehicle Makes (Marques)
+INSERT INTO VehicleMake (make_name) VALUES ('Toyota') ON CONFLICT DO NOTHING;
+INSERT INTO VehicleMake (make_name) VALUES ('Honda') ON CONFLICT DO NOTHING;
+INSERT INTO VehicleMake (make_name) VALUES ('Ford') ON CONFLICT DO NOTHING;
+INSERT INTO VehicleMake (make_name) VALUES ('Tesla') ON CONFLICT DO NOTHING;
+INSERT INTO VehicleMake (make_name) VALUES ('BMW') ON CONFLICT DO NOTHING;
+INSERT INTO VehicleMake (make_name) VALUES ('Mercedes') ON CONFLICT DO NOTHING;
+
+-- 4. Transmission Types
+INSERT INTO TransmissionType (type_name) VALUES ('Manuelle') ON CONFLICT DO NOTHING;
+INSERT INTO TransmissionType (type_name) VALUES ('Automatique') ON CONFLICT DO NOTHING;
+INSERT INTO TransmissionType (type_name) VALUES ('Séquentielle') ON CONFLICT DO NOTHING;
+
+-- 5. Vehicle Sizes
+INSERT INTO VehicleSize (size_name) VALUES ('Compacte') ON CONFLICT DO NOTHING;
+INSERT INTO VehicleSize (size_name) VALUES ('SUV') ON CONFLICT DO NOTHING;
+INSERT INTO VehicleSize (size_name) VALUES ('Berline') ON CONFLICT DO NOTHING;
+INSERT INTO VehicleSize (size_name) VALUES ('Utilitaire') ON CONFLICT DO NOTHING;
+
+-- 6. Vehicle Types
+INSERT INTO VehicleType (type_name) VALUES ('Personnel') ON CONFLICT DO NOTHING;
+INSERT INTO VehicleType (type_name) VALUES ('Commercial') ON CONFLICT DO NOTHING;
+INSERT INTO VehicleType (type_name) VALUES ('Transport') ON CONFLICT DO NOTHING;
+
+-- 7. Vehicle Models (Simplifié)
+INSERT INTO VehicleModel (model_name) VALUES ('Corolla') ON CONFLICT DO NOTHING;
+INSERT INTO VehicleModel (model_name) VALUES ('Yaris') ON CONFLICT DO NOTHING;
+INSERT INTO VehicleModel (model_name) VALUES ('Model 3') ON CONFLICT DO NOTHING;
+INSERT INTO VehicleModel (model_name) VALUES ('X5') ON CONFLICT DO NOTHING;
+INSERT INTO VehicleModel (model_name) VALUES ('Civic') ON CONFLICT DO NOTHING;// END OF FILE: src/main/resources/data.sql
+
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/resources/prod.application.yml
 
 server:
@@ -6748,22 +7184,10 @@ resilience4j:
 
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/resources/schema.sql
 
-/*CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
-DROP TABLE IF EXISTS products CASCADE;
-
-CREATE TABLE IF NOT EXISTS products (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255),
-    price DECIMAL(10, 2),
-    status VARCHAR(50)
-);*/
-
 -- Active l'extension pour générer des UUIDs, si elle n'est pas déjà active.
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Supprime les anciennes tables dans l'ordre inverse de la création pour éviter les erreurs de dépendance.
--- CASCADE supprime automatiquement les contraintes qui dépendent de ces tables.
 DROP TABLE IF EXISTS VehicleOwnership CASCADE;
 DROP TABLE IF EXISTS VehicleReview CASCADE;
 DROP TABLE IF EXISTS VehicleIllustrationImage CASCADE;
@@ -6783,7 +7207,6 @@ DROP TABLE IF EXISTS VehicleModel CASCADE;
 
 -- ================================================================================================
 -- TABLES DE RÉFÉRENCE (Lookup Tables)
--- Celles-ci doivent être créées en premier car la table Vehicle en dépend.
 -- ================================================================================================
 
 CREATE TABLE VehicleModel (
@@ -6795,14 +7218,14 @@ CREATE TABLE VehicleModel (
 
 CREATE TABLE TransmissionType (
     transmission_type_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    type_name TEXT NOT NULL, -- Ex: 'Manual 2WD', 'Automatic 4WD'
+    type_name TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ
 );
 
 CREATE TABLE VehicleMake (
     vehicle_make_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    make_name TEXT NOT NULL -- 'Brand'
+    make_name TEXT NOT NULL
 );
 
 CREATE TABLE VehicleSize (
@@ -6814,22 +7237,21 @@ CREATE TABLE VehicleSize (
 
 CREATE TABLE FuelType (
     fuel_type_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    fuel_type_name TEXT NOT NULL -- Ex: 'petrol', 'diesel', 'electric', 'hybrid'
+    fuel_type_name TEXT NOT NULL
 );
 
 CREATE TABLE VehicleType (
     vehicle_type_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    type_name TEXT NOT NULL -- Ex: 'commercial', 'sport', 'personal'
+    type_name TEXT NOT NULL
 );
 
 CREATE TABLE Manufacturer (
     manufacturer_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    manufacturer_name TEXT NOT NULL -- Ex: 'Toyota', 'Renault', 'Mercedes'
+    manufacturer_name TEXT NOT NULL
 );
 
 -- ================================================================================================
 -- TABLE POUR LES PROPRIÉTAIRES / UTILISATEURS (Parties)
--- Utilise une approche "Single Table Inheritance" pour les différents types de Party.
 -- ================================================================================================
 
 CREATE TABLE Party (
@@ -6843,7 +7265,6 @@ CREATE TABLE Party (
 
 -- ================================================================================================
 -- TABLE PRINCIPALE (Vehicle)
--- Le cœur du domaine.
 -- ================================================================================================
 
 CREATE TABLE Vehicle (
@@ -6860,9 +7281,9 @@ CREATE TABLE Vehicle (
 
     -- Informations d'identification du véhicule
     vehicle_serial_number TEXT UNIQUE,
-    vehicle_serial_photo TEXT,      -- URL ou chemin vers le fichier
+    vehicle_serial_photo TEXT,
     registration_number TEXT,
-    registration_photo TEXT,        -- URL ou chemin vers le fichier
+    registration_photo TEXT,
     registration_expiry_date TIMESTAMPTZ,
 
     -- Caractéristiques techniques
@@ -6877,7 +7298,7 @@ CREATE TABLE Vehicle (
     vehicle_age_at_start NUMERIC,
 
     -- Métadonnées
-    brand TEXT, -- Peut être redondant avec VehicleMake, mais conservé du diagramme
+    brand TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ
 );
@@ -6885,7 +7306,6 @@ CREATE TABLE Vehicle (
 
 -- ================================================================================================
 -- TABLES DE DÉTAILS (Join Tables)
--- Lient des informations additionnelles au véhicule.
 -- ================================================================================================
 
 CREATE TABLE VehicleAmenity (
@@ -6917,7 +7337,7 @@ CREATE TABLE VehicleIllustrationImage (
 );
 
 CREATE TABLE VehicleReview (
-    review_id UUID PRIMARY KEY, -- ID unique de la review (provenant d'un service externe)
+    review_id UUID PRIMARY KEY,
     vehicle_id UUID NOT NULL REFERENCES Vehicle(vehicle_id) ON DELETE CASCADE
 );
 
@@ -6928,8 +7348,6 @@ CREATE TABLE VehicleReview (
 CREATE TABLE VehicleOwnership (
     vehicle_ownership_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     vehicle_id UUID NOT NULL REFERENCES Vehicle(vehicle_id) ON DELETE CASCADE,
-    -- party_id est l'ID de l'utilisateur du service d'authentification externe
-    -- Pas de clé étrangère car géré par un service externe
     party_id UUID NOT NULL,
     usage_role TEXT NOT NULL CHECK (usage_role IN ('DRIVER', 'LOGISTICS', 'FLEET', 'OWNER')),
     is_primary BOOLEAN DEFAULT false,
@@ -6938,8 +7356,7 @@ CREATE TABLE VehicleOwnership (
 );
 
 -- Index pour garantir qu'une Party n'a qu'un seul véhicule principal pour un rôle donné
-CREATE UNIQUE INDEX idx_unique_primary_vehicle_per_role ON VehicleOwnership (party_id, usage_role) WHERE is_primary = true;
-// END OF FILE: src/main/resources/schema.sql
+CREATE UNIQUE INDEX idx_unique_primary_vehicle_per_role ON VehicleOwnership (party_id, usage_role) WHERE is_primary = true;// END OF FILE: src/main/resources/schema.sql
 
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/test/java/com/yowyob/template/infrastructure/adapters/inbound/rest/VehicleDetailsControllerTest.java
 
