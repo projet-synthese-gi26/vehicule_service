@@ -1,5 +1,5 @@
 Project Context From: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service
-Generated On: dim. 28 déc. 2025 07:58:01 WAT
+Generated On: mer. 28 janv. 2026 07:51:18 WAT
 ===============================================
 Ignored Directory Patterns: .* node_modules vendor build dist target __pycache__ .next cache target storage
 Ignored File Patterns: *.log *.jar *.pdf *.class *.sqlite project_context.txt package-lock.json yarn.lock composer.lock *.ico pnpm-lock.yaml
@@ -5805,50 +5805,6 @@ public interface VehicleTypeR2dbcRepository extends ReactiveCrudRepository<Vehic
 }
 // END OF FILE: src/main/java/com/yowyob/template/infrastructure/adapters/outbound/persistence/repository/VehicleTypeR2dbcRepository.java
 
-//---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/infrastructure/config/DatabaseInitConfig.java
-
-package com.yowyob.template.infrastructure.config;
-
-import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.r2dbc.core.DatabaseClient;
-import jakarta.annotation.PostConstruct;
-import reactor.core.publisher.Flux;
-
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.stream.Collectors;
-
-@Configuration
-public class DatabaseInitConfig {
-
-    private final DatabaseClient databaseClient;
-
-    public DatabaseInitConfig(DatabaseClient databaseClient) {
-        this.databaseClient = databaseClient;
-    }
-
-    @PostConstruct
-    public void init() throws Exception {
-        ClassPathResource resource = new ClassPathResource("schema.sql");
-        String sql = Files.lines(Paths.get(resource.getURI()))
-                          .collect(Collectors.joining("\n"));
-
-        String[] statements = sql.split(";");
-
-        Flux.fromArray(statements)
-            .map(String::trim)
-            .filter(s -> !s.isEmpty())
-            .flatMap(s -> databaseClient.sql(s).then())
-            .subscribe(
-                null,
-                err -> System.err.println("Erreur lors de l'init DB : " + err),
-                () -> System.out.println("Base initialisée avec succès")
-            );
-    }
-}
-// END OF FILE: src/main/java/com/yowyob/template/infrastructure/config/DatabaseInitConfig.java
-
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/main/java/com/yowyob/template/infrastructure/config/KafkaConfig.java
 
 package com.yowyob.template.infrastructure.config;
@@ -7357,6 +7313,50 @@ CREATE TABLE VehicleOwnership (
 
 -- Index pour garantir qu'une Party n'a qu'un seul véhicule principal pour un rôle donné
 CREATE UNIQUE INDEX idx_unique_primary_vehicle_per_role ON VehicleOwnership (party_id, usage_role) WHERE is_primary = true;// END OF FILE: src/main/resources/schema.sql
+
+//---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/residu
+
+package com.yowyob.template.infrastructure.config;
+
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.r2dbc.core.DatabaseClient;
+import jakarta.annotation.PostConstruct;
+import reactor.core.publisher.Flux;
+
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.stream.Collectors;
+
+@Configuration
+public class DatabaseInitConfig {
+
+    private final DatabaseClient databaseClient;
+
+    public DatabaseInitConfig(DatabaseClient databaseClient) {
+        this.databaseClient = databaseClient;
+    }
+
+    @PostConstruct
+    public void init() throws Exception {
+        ClassPathResource resource = new ClassPathResource("schema.sql");
+        String sql = Files.lines(Paths.get(resource.getURI()))
+                          .collect(Collectors.joining("\n"));
+
+        String[] statements = sql.split(";");
+
+        Flux.fromArray(statements)
+            .map(String::trim)
+            .filter(s -> !s.isEmpty())
+            .flatMap(s -> databaseClient.sql(s).then())
+            .subscribe(
+                null,
+                err -> System.err.println("Erreur lors de l'init DB : " + err),
+                () -> System.out.println("Base initialisée avec succès")
+            );
+    }
+}
+// END OF FILE: src/residu
 
 //---> PATH: /home/mbogneng-junior/Documents/5GI/Projets/synthese/vehicule_service/src/test/java/com/yowyob/template/infrastructure/adapters/inbound/rest/VehicleDetailsControllerTest.java
 
