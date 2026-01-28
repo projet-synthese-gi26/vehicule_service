@@ -34,4 +34,4 @@ La roadmap est suivie dans `todo.md`.
 
 
 ### Premiere mission
-ceci est le debogage des crud des vehicules,via le service simplifie.actuelleemnt create,get marchent,masi pas put et patch car on med idt entite deja existante. c'est ca qu'on doit corriger,j'avaias deja commcence a resourdre ca avec une autre ia mais mes tokens sont finis.aide moi a le faire,commence par me dire quelles son les modiffications a mettre en palce afin que ca marche.
+aide moi a debugger,j'ai code le crud vehicules et les images,ca passait,j'ai modifie les ficheirs de config et le web api clie nt et boo crash

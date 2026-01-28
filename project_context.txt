@@ -1,5 +1,5 @@
 # Contexte du Projet : Fleet & Geofence API
-Généré le : Wed 28 Jan 2026 08:08:09 PM WAT
+Généré le : Wed 28 Jan 2026 11:32:54 PM WAT
 Framework : Spring Boot WebFlux (Reactive)
 
 ## 1. Arborescence du Projet
@@ -32,6 +32,7 @@ Framework : Spring Boot WebFlux (Reactive)
 │   │   │               │       ├── ProductService.java
 │   │   │               │       ├── VehicleDetailsService.java
 │   │   │               │       ├── VehicleLookupService.java
+│   │   │               │       ├── VehicleMediaService.java
 │   │   │               │       ├── VehicleOwnershipService.java
 │   │   │               │       ├── VehicleService.java
 │   │   │               │       └── VehicleSmartCreationService.java
@@ -67,9 +68,11 @@ Framework : Spring Boot WebFlux (Reactive)
 │   │   │               │       │   ├── CreateProductUseCase.java
 │   │   │               │       │   ├── ManageVehicleDetailsUseCase.java
 │   │   │               │       │   ├── ManageVehicleLookupUseCase.java
+│   │   │               │       │   ├── ManageVehicleMediaUseCase.java
 │   │   │               │       │   ├── ManageVehicleOwnershipUseCase.java
 │   │   │               │       │   └── ManageVehicleUseCase.java
 │   │   │               │       └── out
+│   │   │               │           ├── MediaStoragePort.java
 │   │   │               │           ├── ProductCachePort.java
 │   │   │               │           ├── ProductEventPublisherPort.java
 │   │   │               │           ├── ProductRepositoryPort.java
@@ -128,6 +131,7 @@ Framework : Spring Boot WebFlux (Reactive)
 │   │   │               │   │   │       ├── VehicleController.java
 │   │   │               │   │   │       ├── VehicleDetailsController.java
 │   │   │               │   │   │       ├── VehicleLookupController.java
+│   │   │               │   │   │       ├── VehicleMediaController.java
 │   │   │               │   │   │       └── VehicleOwnershipController.java
 │   │   │               │   │   └── outbound
 │   │   │               │   │       ├── cache
@@ -135,6 +139,9 @@ Framework : Spring Boot WebFlux (Reactive)
 │   │   │               │   │       ├── external
 │   │   │               │   │       │   ├── client
 │   │   │               │   │       │   │   └── StockApiClient.java
+│   │   │               │   │       │   ├── dto
+│   │   │               │   │       │   │   └── MediaServiceResponse.java
+│   │   │               │   │       │   ├── HttpMediaAdapter.java
 │   │   │               │   │       │   └── StockAdapter.java
 │   │   │               │   │       ├── messaging
 │   │   │               │   │       │   └── KafkaAdapter.java
@@ -233,7 +240,7 @@ Framework : Spring Boot WebFlux (Reactive)
     └── mappings
         └── stock-scenarios.json
 
-56 directories, 171 files
+57 directories, 177 files
 ```
 ## 2. Contenu des Fichiers
 
@@ -553,7 +560,7 @@ La roadmap est suivie dans `todo.md`.
 
 
 ### Premiere mission
-ceci est ```
+ceci est le debogage des crud des vehicules,via le service simplifie.actuelleemnt create,get marchent,masi pas put et patch car on med idt entite deja existante. c'est ca qu'on doit corriger,j'avaias deja commcence a resourdre ca avec une autre ia mais mes tokens sont finis.aide moi a le faire,commence par me dire quelles son les modiffications a mettre en palce afin que ca marche.```
 
 ---
 ### Fichier : `./todo.md`
@@ -569,16 +576,16 @@ ceci est ```
 - [x] **Optimisation Réactive** : S'assurer que ces créations en chaîne se font proprement avec Reactor (chaining `switchIfEmpty`).
 
 ## Étape 3 : Complétude du CRUD Véhicule
-- [ ] **Endpoint PATCH** : Créer la route et la logique pour la mise à jour partielle d'un véhicule (ex: changer juste le kilométrage).
-- [ ] **Endpoint GET (Détails)** : Vérifier que le `getById` renvoie bien toutes les infos agrégées (options, images) et pas juste l'objet brut.Et faire le `getById` sur chaque table
+- [x] **Endpoint PATCH** : Créer la route et la logique pour la mise à jour partielle d'un véhicule (ex: changer juste le kilométrage).
+- [x] **Endpoint GET (Détails)** : Vérifier que le `getById` renvoie bien toutes les infos agrégées (options, images) et pas juste l'objet brut.Et faire le `getById` sur chaque table
 
 ## Étape 4 : Gestion des Médias (Images)
 - [ ] **Service de Stockage** : Implémenter un service simple pour sauvegarder les fichiers (MultipartFile) sur le disque local.
 - [ ] **Endpoint Upload** : Créer la route `POST /vehicles/{id}/images` pour uploader et lier une image à un véhicule.
 
 ## Étape 5 : Validation & Tests
-- [ ] **Test Swagger** : Valider manuellement chaque endpoint via Swagger UI.
-- [ ] **Nettoyage** : Supprimer le code mort ou les TODOs obsolètes.
+- [x] **Test Swagger** : Valider manuellement chaque endpoint via Swagger UI.
+- [x] **Nettoyage** : Supprimer le code mort ou les TODOs obsolètes.
 
 ---
 ```
@@ -1328,7 +1335,7 @@ INSERT INTO VehicleModel (model_name) VALUES ('Civic') ON CONFLICT DO NOTHING;``
 ```yaml
 server:
   port: 8080
-
+  forward-headers-strategy: framework
 spring:
   application:
     name: vehicule-service
@@ -1336,6 +1343,16 @@ spring:
   docker:
     compose:
       enabled: false
+  # Configuration Multipart (Uploads)
+  webflux:
+    multipart:
+      max-in-memory-size: 256KB # Taille en RAM avant écriture disque (si besoin)
+      max-file-size: 10MB       # Taille max d'un fichier
+      max-request-size: 10MB    # Taille max de la requête totale
+
+  # Configuration des Codecs (Pour éviter les erreurs "DataBufferLimitException")
+  codec:
+    max-in-memory-size: 10MB
 
   # POSTGRESQL (R2DBC)
   r2dbc:
@@ -1381,6 +1398,7 @@ spring:
 application:
   external:
     stock-service-url: http://${EXTERNAL_HOST:localhost}:8081
+    media-service-url: https://media-service.pynfi.com
 
   kafka:
     topics:
@@ -1603,10 +1621,21 @@ server:
 spring:
   application:
     name: vehicule-service
+    forward-headers-strategy: framework
     
   docker:
     compose:
       enabled: false
+  # Configuration Multipart (Uploads)
+  webflux:
+    multipart:
+      max-in-memory-size: 256KB # Taille en RAM avant écriture disque (si besoin)
+      max-file-size: 10MB       # Taille max d'un fichier
+      max-request-size: 10MB    # Taille max de la requête totale
+
+  # Configuration des Codecs (Pour éviter les erreurs "DataBufferLimitException")
+  codec:
+    max-in-memory-size: 10MB
 
   # POSTGRESQL (R2DBC)
   r2dbc:
@@ -1656,7 +1685,7 @@ spring:
 application:
   external:
     stock-service-url: http://${EXTERNAL_HOST:localhost}:8081
-    fare-calculator-url: https://fare-calculator-service.pynfi.com
+    media-service-url: https://media-service.pynfi.com
 
   kafka:
     topics:
@@ -1884,17 +1913,12 @@ public interface VehicleMapper {
     Vehicle toDomain(VehicleRequest request);
 
     VehicleResponse toResponse(Vehicle domain);
-
-    // Vehicle (domaine) → VehicleEntity (pour persistance)
-    @Mapping(target = "vehicleId", ignore = true) // ID DB généré, ignore si création
-    @Mapping(target = "createdAt", ignore = true) // Créé par DB
+    @Mapping(target = "createdAt", ignore = true) // Créé par DB/Auditing
     @Mapping(target = "updatedAt", ignore = true) // Mise à jour automatique
     VehicleEntity toEntity(Vehicle domain);
 
     Vehicle toDomain(VehicleEntity entity);
-
-}
-```
+}```
 
 ---
 ### Fichier : `./src/main/java/com/yowyob/template/infrastructure/mappers/VehicleOwnershipMapper.java`
@@ -2090,6 +2114,22 @@ public interface VehicleMakeMapper {
 ```
 
 ---
+### Fichier : `./src/main/java/com/yowyob/template/infrastructure/adapters/outbound/external/dto/MediaServiceResponse.java`
+```java
+package com.yowyob.template.infrastructure.adapters.outbound.external.dto;
+
+import java.util.UUID;
+
+public record MediaServiceResponse(
+    UUID id,
+    String uri,
+    String name,
+    String path,
+    String mime,
+    Long size
+) {}```
+
+---
 ### Fichier : `./src/main/java/com/yowyob/template/infrastructure/adapters/outbound/external/StockAdapter.java`
 ```java
 package com.yowyob.template.infrastructure.adapters.outbound.external;
@@ -2144,6 +2184,67 @@ public interface StockApiClient {
     Mono<StockResponse> checkStock(@RequestParam("name") String name);
 
     record StockResponse(boolean full) {}
+}```
+
+---
+### Fichier : `./src/main/java/com/yowyob/template/infrastructure/adapters/outbound/external/HttpMediaAdapter.java`
+```java
+package com.yowyob.template.infrastructure.adapters.outbound.external;
+
+import com.yowyob.template.domain.ports.out.MediaStoragePort;
+import com.yowyob.template.infrastructure.adapters.outbound.external.dto.MediaServiceResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.MultipartBodyBuilder;
+import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class HttpMediaAdapter implements MediaStoragePort {
+
+    private final WebClient.Builder webClientBuilder;
+
+    @Value("${application.external.media-service-url}")
+    private String mediaServiceUrl;
+
+    @Override
+    public Mono<MediaServiceResponse> upload(FilePart file, String location) {
+        WebClient client = webClientBuilder.baseUrl(mediaServiceUrl).build();
+
+        MultipartBodyBuilder builder = new MultipartBodyBuilder();
+        builder.part("file", file);
+        builder.part("service", "fleet-service");
+        builder.part("location", location);
+
+        return client.post()
+                .uri("/media/upload")
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .body(BodyInserters.fromMultipartData(builder.build()))
+                .retrieve()
+                .bodyToMono(MediaServiceResponse.class)
+                .doOnSuccess(r -> log.info("Upload réussi: {}", r.uri()))
+                .doOnError(e -> log.error("Erreur upload MediaService", e));
+    }
+
+    @Override
+    public Mono<Void> delete(String mediaId) {
+        if (mediaId == null || mediaId.isBlank()) return Mono.empty();
+        
+        WebClient client = webClientBuilder.baseUrl(mediaServiceUrl).build();
+        return client.delete()
+                .uri("/media/{id}", mediaId)
+                .retrieve()
+                .bodyToMono(Void.class)
+                .doOnError(e -> log.warn("Erreur suppression MediaService (ID: {}): {}", mediaId, e.getMessage()))
+                .onErrorResume(e -> Mono.empty()); // On ne bloque pas si le fichier n'existe plus
+    }
 }```
 
 ---
@@ -3310,16 +3411,22 @@ import org.springframework.stereotype.Repository;
 import com.yowyob.template.infrastructure.adapters.outbound.persistence.entity.VehicleEntity;
 
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Repository
 public interface VehicleR2dbcRepository extends ReactiveCrudRepository<VehicleEntity, UUID> {
+    
+    // CORRECTION : Utilisation de "Vehicle" et "VehicleOwnership" tels que définis dans @Table
+    // On s'assure que la jointure est correcte.
     @Query("SELECT v.* FROM Vehicle v " +
            "INNER JOIN VehicleOwnership vo ON v.vehicle_id = vo.vehicle_id " +
            "WHERE vo.party_id = :partyId")
     Flux<VehicleEntity> findByPartyId(UUID partyId);
 
-}
-```
+    // --- Validation d'unicité ---
+    Mono<Boolean> existsByVehicleSerialNumberAndVehicleIdNot(String vehicleSerialNumber, UUID vehicleId);
+    Mono<Boolean> existsByRegistrationNumberAndVehicleIdNot(String registrationNumber, UUID vehicleId);
+}```
 
 ---
 ### Fichier : `./src/main/java/com/yowyob/template/infrastructure/adapters/outbound/persistence/repository/TransmissionTypeR2dbcRepository.java`
@@ -3448,7 +3555,6 @@ public interface VehicleRepository extends ReactiveCrudRepository<VehicleEntity,
 ---
 ### Fichier : `./src/main/java/com/yowyob/template/infrastructure/adapters/outbound/persistence/PostgreVehicleAdapter.java`
 ```java
-//---> PATH: src/main/java/com/yowyob/template/infrastructure/adapters/outbound/persistence/PostgreVehicleAdapter.java
 package com.yowyob.template.infrastructure.adapters.outbound.persistence;
 
 import com.yowyob.template.domain.model.vehicle.Vehicle;
@@ -3471,9 +3577,6 @@ public class PostgreVehicleAdapter implements VehicleRepositoryPort {
 
     @Override
     public Mono<Vehicle> saveVehicle(Vehicle vehicle) {
-        // Le mapper gère la conversion. Si vehicle.vehicleId est présent, 
-        // l'entité aura l'ID, et R2DBC fera un UPDATE (isNew() = false).
-        // Si c'est null, R2DBC fera un INSERT.
         return Mono.just(mapper.toEntity(vehicle))
                 .flatMap(repository::save)
                 .map(mapper::toDomain);
@@ -3484,6 +3587,7 @@ public class PostgreVehicleAdapter implements VehicleRepositoryPort {
         return repository.findAll()
                 .map(mapper::toDomain);
     }
+
     @Override
     public Flux<Vehicle> findVehiclesByPartyId(UUID partyId) {
         return repository.findByPartyId(partyId)
@@ -3499,6 +3603,18 @@ public class PostgreVehicleAdapter implements VehicleRepositoryPort {
     @Override
     public Mono<Void> deleteVehicle(UUID id) {
         return repository.deleteById(id);
+    }
+
+    @Override
+    public Mono<Boolean> existsBySerialNumberAndIdNot(String serialNumber, UUID id) {
+        if (serialNumber == null) return Mono.just(false);
+        return repository.existsByVehicleSerialNumberAndVehicleIdNot(serialNumber, id);
+    }
+
+    @Override
+    public Mono<Boolean> existsByRegistrationNumberAndIdNot(String registrationNumber, UUID id) {
+        if (registrationNumber == null) return Mono.just(false);
+        return repository.existsByRegistrationNumberAndVehicleIdNot(registrationNumber, id);
     }
 }```
 
@@ -5189,30 +5305,129 @@ public record PartyResponse(
 ```
 
 ---
+### Fichier : `./src/main/java/com/yowyob/template/infrastructure/adapters/inbound/rest/VehicleMediaController.java`
+```java
+package com.yowyob.template.infrastructure.adapters.inbound.rest;
+
+import com.yowyob.template.domain.ports.in.ManageVehicleMediaUseCase;
+import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.VehicleResponse;
+import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.details.VehicleIllustrationImageResponse;
+import com.yowyob.template.infrastructure.mappers.VehicleDetailsMapper;
+import com.yowyob.template.infrastructure.mappers.VehicleMapper;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/vehicles")
+@RequiredArgsConstructor
+@Tag(name = "Vehicle Media", description = "Gestion des documents et photos des véhicules")
+@SecurityRequirement(name = "bearerAuth")
+public class VehicleMediaController {
+
+    private final ManageVehicleMediaUseCase mediaUseCase;
+    private final VehicleMapper vehicleMapper;
+    private final VehicleDetailsMapper detailsMapper;
+
+    // --- SERIAL PHOTO ---
+
+    @PutMapping(value = "/{id}/documents/serial", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Mettre à jour la photo N° Série (VIN)")
+    public Mono<VehicleResponse> updateSerialPhoto(
+            @PathVariable UUID id,
+            @RequestPart("file") Mono<FilePart> filePartMono) {
+        return filePartMono
+                .flatMap(file -> mediaUseCase.uploadSerialPhoto(id, file))
+                .map(vehicleMapper::toResponse);
+    }
+
+    @DeleteMapping("/{id}/documents/serial")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Supprimer la photo N° Série")
+    public Mono<Void> deleteSerialPhoto(@PathVariable UUID id) {
+        return mediaUseCase.deleteSerialPhoto(id);
+    }
+
+    // --- REGISTRATION PHOTO ---
+
+    @PutMapping(value = "/{id}/documents/registration", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Mettre à jour la photo Carte Grise")
+    public Mono<VehicleResponse> updateRegistrationPhoto(
+            @PathVariable UUID id,
+            @RequestPart("file") Mono<FilePart> filePartMono) {
+        return filePartMono
+                .flatMap(file -> mediaUseCase.uploadRegistrationPhoto(id, file))
+                .map(vehicleMapper::toResponse);
+    }
+
+    @DeleteMapping("/{id}/documents/registration")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Supprimer la photo Carte Grise")
+    public Mono<Void> deleteRegistrationPhoto(@PathVariable UUID id) {
+        return mediaUseCase.deleteRegistrationPhoto(id);
+    }
+
+    // --- ILLUSTRATIONS ---
+
+    @GetMapping("/{id}/images")
+    @Operation(summary = "Lister les images d'illustration")
+    public Flux<VehicleIllustrationImageResponse> getIllustrations(@PathVariable UUID id) {
+        return mediaUseCase.getIllustrationImages(id)
+                .map(detailsMapper::toResponse);
+    }
+
+    @PostMapping(value = "/{id}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Ajouter une image d'illustration")
+    public Mono<VehicleIllustrationImageResponse> addIllustration(
+            @PathVariable UUID id,
+            @RequestPart("file") Mono<FilePart> filePartMono) {
+        return filePartMono
+                .flatMap(file -> mediaUseCase.addIllustrationImage(id, file))
+                .map(detailsMapper::toResponse);
+    }
+
+    @DeleteMapping("/images/{imageId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Supprimer une image d'illustration")
+    public Mono<Void> deleteIllustration(@PathVariable UUID imageId) {
+        // Note: On pourrait passer le vehicleId aussi pour vérifier les droits
+        return mediaUseCase.deleteIllustrationImage(null, imageId);
+    }
+}```
+
+---
 ### Fichier : `./src/main/java/com/yowyob/template/infrastructure/config/WebClientConfig.java`
 ```java
 package com.yowyob.template.infrastructure.config;
 
-import com.yowyob.template.infrastructure.adapters.outbound.external.client.StockApiClient;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.reactive.function.client.ExchangeStrategies; // Import important
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.support.WebClientAdapter;
-import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 
 @Configuration
 public class WebClientConfig {
 
     @Bean
-    public StockApiClient stockApiClient(WebClient.Builder builder,
-            @Value("${application.external.stock-service-url}") String url) {
+    public WebClient.Builder webClientBuilder() {
+        // Augmenter la taille du buffer mémoire à 16MB (par défaut 256KB)
+        final int size = 16 * 1024 * 1024;
+        final ExchangeStrategies strategies = ExchangeStrategies.builder()
+                .codecs(codecs -> codecs.defaultCodecs().maxInMemorySize(size))
+                .build();
 
-        WebClient webClient = builder.baseUrl(url).build();
-        WebClientAdapter adapter = WebClientAdapter.create(webClient);
-        HttpServiceProxyFactory factory = HttpServiceProxyFactory.builderFor(adapter).build();
-
-        return factory.createClient(StockApiClient.class);
+        return WebClient.builder()
+                .exchangeStrategies(strategies);
     }
 }```
 
@@ -5406,6 +5621,7 @@ package com.yowyob.template.infrastructure.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod; // <--- Import nécessaire
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
@@ -5414,11 +5630,10 @@ import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.context.NoOpServerSecurityContextRepository;
 import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.reactive.CorsWebFilter; // <-- Important
+import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import reactor.core.publisher.Mono;
 
-import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -5437,7 +5652,7 @@ public class SecurityConfig {
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         return http
-                // On désactive le CORS de Spring Security car on utilise le CorsWebFilter plus bas
+                // On laisse le CorsWebFilter gérer le CORS
                 .cors(ServerHttpSecurity.CorsSpec::disable)
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .securityContextRepository(NoOpServerSecurityContextRepository.getInstance())
@@ -5452,21 +5667,25 @@ public class SecurityConfig {
                         })
                 )
                 .authorizeExchange(exchanges -> exchanges
+                        // 👇 INDISPENSABLE : On autorise TOUTES les requêtes OPTIONS (CORS preflight) sans token
+                        .pathMatchers(HttpMethod.OPTIONS).permitAll()
+                        
+                        // Tes routes publiques (Swagger, etc.)
                         .pathMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/webjars/**", "/actuator/**").permitAll()
+                        
+                        // Tout le reste nécessite un token
                         .anyExchange().authenticated()
                 )
                 .addFilterAt(jwtAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
                 .build();
     }
 
-    /**
-     * Configuration CORS "Nucléaire" pour WebFlux.
-     * C'est le moyen le plus efficace pour éviter les blocages en dev.
-     */
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfig = new CorsConfiguration();
-        corsConfig.setAllowedOriginPatterns(List.of("*")); // Plus permissif que setAllowedOrigins
+        // En prod, l'étoile '*' peut être bloquée par certains navigateurs si allowCredentials=true
+        // Mieux vaut utiliser setAllowedOriginPatterns qui est plus souple
+        corsConfig.setAllowedOriginPatterns(List.of("*")); 
         corsConfig.setMaxAge(8000L);
         corsConfig.addAllowedMethod("*");
         corsConfig.addAllowedHeader("*");
@@ -6184,7 +6403,7 @@ public interface ManageVehicleUseCase {
 
     Mono<Vehicle> updateVehicle(Vehicle vehicle);
 
-    // --> AJOUT DE CETTE MÉTHODE
+    // C'est cette méthode qui manque souvent et cause le rouge
     Mono<Vehicle> patchVehicle(UUID id, Vehicle partialVehicle); 
 
     Flux<Vehicle> getAllVehicles();
@@ -6194,6 +6413,34 @@ public interface ManageVehicleUseCase {
     Mono<Vehicle> getVehicleById(UUID id);
 
     Mono<Void> deleteVehicle(UUID id);
+}```
+
+---
+### Fichier : `./src/main/java/com/yowyob/template/domain/ports/in/ManageVehicleMediaUseCase.java`
+```java
+package com.yowyob.template.domain.ports.in;
+
+import com.yowyob.template.domain.model.vehicle.Vehicle;
+import com.yowyob.template.domain.model.vehicle.details.VehicleIllustrationImage;
+import org.springframework.http.codec.multipart.FilePart;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.util.UUID;
+
+public interface ManageVehicleMediaUseCase {
+
+    // --- Documents Uniques (1-1) ---
+    Mono<Vehicle> uploadSerialPhoto(UUID vehicleId, FilePart file);
+    Mono<Void> deleteSerialPhoto(UUID vehicleId);
+
+    Mono<Vehicle> uploadRegistrationPhoto(UUID vehicleId, FilePart file);
+    Mono<Void> deleteRegistrationPhoto(UUID vehicleId);
+
+    // --- Illustrations (1-N) ---
+    Mono<VehicleIllustrationImage> addIllustrationImage(UUID vehicleId, FilePart file);
+    Flux<VehicleIllustrationImage> getIllustrationImages(UUID vehicleId);
+    Mono<Void> deleteIllustrationImage(UUID vehicleId, UUID imageId); // vehicleId pour vérification sécu
 }```
 
 ---
@@ -6333,9 +6580,30 @@ public interface CreateProductUseCase {
 }```
 
 ---
+### Fichier : `./src/main/java/com/yowyob/template/domain/ports/out/MediaStoragePort.java`
+```java
+package com.yowyob.template.domain.ports.out;
+
+import org.springframework.http.codec.multipart.FilePart;
+import reactor.core.publisher.Mono;
+
+public interface MediaStoragePort {
+    /**
+     * Upload un fichier vers le stockage externe.
+     * @return L'URL publique du fichier + L'ID du média (encapsulés ou juste l'URL selon besoin)
+     * Ici on renvoie l'objet complet réponse pour avoir l'ID et l'URI.
+     */
+    Mono<com.yowyob.template.infrastructure.adapters.outbound.external.dto.MediaServiceResponse> upload(FilePart file, String location);
+
+    /**
+     * Supprime un fichier du stockage externe via son ID.
+     */
+    Mono<Void> delete(String mediaId);
+}```
+
+---
 ### Fichier : `./src/main/java/com/yowyob/template/domain/ports/out/VehicleRepositoryPort.java`
 ```java
-//---> PATH: src/main/java/com/yowyob/template/domain/ports/out/VehicleRepositoryPort.java
 package com.yowyob.template.domain.ports.out;
 
 import com.yowyob.template.domain.model.vehicle.Vehicle;
@@ -6355,6 +6623,10 @@ public interface VehicleRepositoryPort {
     Mono<Vehicle> findVehicleById(UUID id);
 
     Mono<Void> deleteVehicle(UUID id);
+
+    // --- Validation d'unicité pour Update/Patch ---
+    Mono<Boolean> existsBySerialNumberAndIdNot(String serialNumber, UUID id);
+    Mono<Boolean> existsByRegistrationNumberAndIdNot(String registrationNumber, UUID id);
 }```
 
 ---
@@ -6603,6 +6875,163 @@ public class VehicleOwnershipService implements ManageVehicleOwnershipUseCase {
 ```
 
 ---
+### Fichier : `./src/main/java/com/yowyob/template/application/service/VehicleMediaService.java`
+```java
+package com.yowyob.template.application.service;
+
+import com.yowyob.template.domain.exception.NotFoundException;
+import com.yowyob.template.domain.model.vehicle.Vehicle;
+import com.yowyob.template.domain.model.vehicle.details.VehicleIllustrationImage;
+import com.yowyob.template.domain.ports.in.ManageVehicleMediaUseCase;
+import com.yowyob.template.domain.ports.out.MediaStoragePort;
+import com.yowyob.template.domain.ports.out.VehicleDetailsRepositoryPort;
+import com.yowyob.template.domain.ports.out.VehicleRepositoryPort;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.util.UUID;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class VehicleMediaService implements ManageVehicleMediaUseCase {
+
+    private final VehicleRepositoryPort vehicleRepository;
+    private final VehicleDetailsRepositoryPort detailsRepository;
+    private final MediaStoragePort mediaStorage;
+
+    // --- DOCUMENT : SERIAL PHOTO ---
+
+    @Override
+    @Transactional
+    public Mono<Vehicle> uploadSerialPhoto(UUID vehicleId, FilePart file) {
+        return vehicleRepository.findVehicleById(vehicleId)
+                .switchIfEmpty(Mono.error(new NotFoundException("Véhicule non trouvé")))
+                .flatMap(vehicle -> {
+                    // 1. Upload nouveau fichier
+                    String location = "vehicles/" + vehicleId + "/documents";
+                    return mediaStorage.upload(file, location)
+                            .flatMap(response -> {
+                                // 2. (Optionnel) Supprimer l'ancien fichier si URL existante
+                                // Pour faire ça proprement, il faudrait extraire l'ID de l'URL précédente.
+                                // Ici on simplifie : on écrase juste la référence en DB.
+                                
+                                // 3. Mise à jour DB
+                                Vehicle updated = copyWithSerialPhoto(vehicle, response.uri());
+                                return vehicleRepository.saveVehicle(updated);
+                            });
+                });
+    }
+
+    @Override
+    @Transactional
+    public Mono<Void> deleteSerialPhoto(UUID vehicleId) {
+        return vehicleRepository.findVehicleById(vehicleId)
+                .switchIfEmpty(Mono.error(new NotFoundException("Véhicule non trouvé")))
+                .flatMap(vehicle -> {
+                    // TODO: Extraire ID media de l'URL pour appeler mediaStorage.delete()
+                    
+                    Vehicle updated = copyWithSerialPhoto(vehicle, null);
+                    return vehicleRepository.saveVehicle(updated).then();
+                });
+    }
+
+    // --- DOCUMENT : REGISTRATION PHOTO ---
+
+    @Override
+    @Transactional
+    public Mono<Vehicle> uploadRegistrationPhoto(UUID vehicleId, FilePart file) {
+        return vehicleRepository.findVehicleById(vehicleId)
+                .switchIfEmpty(Mono.error(new NotFoundException("Véhicule non trouvé")))
+                .flatMap(vehicle -> {
+                    String location = "vehicles/" + vehicleId + "/documents";
+                    return mediaStorage.upload(file, location)
+                            .flatMap(response -> {
+                                Vehicle updated = copyWithRegistrationPhoto(vehicle, response.uri());
+                                return vehicleRepository.saveVehicle(updated);
+                            });
+                });
+    }
+
+    @Override
+    @Transactional
+    public Mono<Void> deleteRegistrationPhoto(UUID vehicleId) {
+        return vehicleRepository.findVehicleById(vehicleId)
+                .switchIfEmpty(Mono.error(new NotFoundException("Véhicule non trouvé")))
+                .flatMap(vehicle -> {
+                    Vehicle updated = copyWithRegistrationPhoto(vehicle, null);
+                    return vehicleRepository.saveVehicle(updated).then();
+                });
+    }
+
+    // --- ILLUSTRATIONS ---
+
+    @Override
+    public Mono<VehicleIllustrationImage> addIllustrationImage(UUID vehicleId, FilePart file) {
+        return vehicleRepository.findVehicleById(vehicleId)
+                .switchIfEmpty(Mono.error(new NotFoundException("Véhicule non trouvé")))
+                .flatMap(v -> {
+                    String location = "vehicles/" + vehicleId + "/illustrations";
+                    return mediaStorage.upload(file, location)
+                            .flatMap(response -> {
+                                VehicleIllustrationImage image = new VehicleIllustrationImage(
+                                        null,
+                                        vehicleId,
+                                        response.uri()
+                                );
+                                return detailsRepository.saveIllustrationImage(image);
+                            });
+                });
+    }
+
+    @Override
+    public Flux<VehicleIllustrationImage> getIllustrationImages(UUID vehicleId) {
+        return detailsRepository.findIllustrationImagesByVehicleId(vehicleId);
+    }
+
+    @Override
+    public Mono<Void> deleteIllustrationImage(UUID vehicleId, UUID imageId) {
+        // On pourrait vérifier que l'image appartient bien au véhicule, 
+        // mais pour l'instant la suppression par ID est suffisante.
+        // Idéalement : appeler mediaStorage.delete() aussi.
+        return detailsRepository.deleteIllustrationImage(imageId);
+    }
+
+    // --- Helpers pour immutabilité des Records ---
+
+    private Vehicle copyWithSerialPhoto(Vehicle v, String url) {
+        return new Vehicle(
+            v.vehicleId(), v.vehicleMakeId(), v.vehicleModelId(), v.transmissionTypeId(), 
+            v.manufacturerId(), v.vehicleSizeId(), v.vehicleTypeId(), v.fuelTypeId(), 
+            v.vehicleSerialNumber(), 
+            url, // <--- Change ici
+            v.registrationNumber(), v.registrationPhoto(), v.registrationExpiryDate(), 
+            v.tankCapacity(), v.luggageMaxCapacity(), v.totalSeatNumber(), 
+            v.averageFuelConsumptionPerKm(), v.mileageAtStart(), v.mileageSinceCommissioning(), 
+            v.vehicleAgeAtStart(), v.brand(), v.createdAt(), null
+        );
+    }
+
+    private Vehicle copyWithRegistrationPhoto(Vehicle v, String url) {
+        return new Vehicle(
+            v.vehicleId(), v.vehicleMakeId(), v.vehicleModelId(), v.transmissionTypeId(), 
+            v.manufacturerId(), v.vehicleSizeId(), v.vehicleTypeId(), v.fuelTypeId(), 
+            v.vehicleSerialNumber(), v.vehicleSerialPhoto(), v.registrationNumber(), 
+            url, // <--- Change ici
+            v.registrationExpiryDate(), 
+            v.tankCapacity(), v.luggageMaxCapacity(), v.totalSeatNumber(), 
+            v.averageFuelConsumptionPerKm(), v.mileageAtStart(), v.mileageSinceCommissioning(), 
+            v.vehicleAgeAtStart(), v.brand(), v.createdAt(), null
+        );
+    }
+}```
+
+---
 ### Fichier : `./src/main/java/com/yowyob/template/application/service/VehicleSmartCreationService.java`
 ```java
 package com.yowyob.template.application.service;
@@ -6632,7 +7061,6 @@ public class VehicleSmartCreationService {
     private final ManageVehicleUseCase manageVehicleUseCase;
     private final VehicleOwnershipRepositoryPort ownershipRepository;
 
-    // Repositories R2DBC directs pour accès bas niveau (Get or Create)
     private final VehicleMakeR2dbcRepository makeRepo;
     private final VehicleModelR2dbcRepository modelRepo;
     private final TransmissionTypeR2dbcRepository transmissionRepo;
@@ -6641,42 +7069,63 @@ public class VehicleSmartCreationService {
     private final VehicleTypeR2dbcRepository typeRepo;
     private final FuelTypeR2dbcRepository fuelRepo;
 
-    /**
-     * Crée un véhicule à partir de noms (String) et l'assigne à l'utilisateur connecté.
-     * Gère automatiquement le flag "isPrimary" pour éviter les conflits d'unicité.
-     */
     @Transactional
     public Mono<Vehicle> createVehicleFromNames(SimplifiedVehicleRequest request, UUID partyId) {
-        log.info("Smart Creation: Début pour l'utilisateur {} - Immatriculation: {}", partyId, request.registrationNumber());
+        log.info("Smart Creation: Début pour user {}", partyId);
 
-        // 1. Définition des Mono pour chaque référence (Pattern: Find OR Save)
+        // 1. Get or Create avec génération d'UUID explicite en Java
+        // Cela garantit que l'objet retourné A TOUJOURS un ID, même si la DB ne le renvoie pas
+        
         Mono<VehicleMakeEntity> makeMono = makeRepo.findByMakeName(request.makeName())
-                .switchIfEmpty(makeRepo.save(VehicleMakeEntity.builder().makeName(request.makeName()).build()));
+                .switchIfEmpty(Mono.defer(() -> {
+                    UUID id = UUID.randomUUID();
+                    return makeRepo.save(VehicleMakeEntity.builder().vehicleMakeId(id).makeName(request.makeName()).build());
+                }));
 
         Mono<VehicleModelEntity> modelMono = modelRepo.findByModelName(request.modelName())
-                .switchIfEmpty(modelRepo.save(VehicleModelEntity.builder().modelName(request.modelName()).build()));
+                .switchIfEmpty(Mono.defer(() -> {
+                    UUID id = UUID.randomUUID();
+                    return modelRepo.save(VehicleModelEntity.builder().vehicleModelId(id).modelName(request.modelName()).build());
+                }));
 
         Mono<TransmissionTypeEntity> transmissionMono = transmissionRepo.findByTypeName(request.transmissionType())
-                .switchIfEmpty(transmissionRepo.save(TransmissionTypeEntity.builder().typeName(request.transmissionType()).build()));
+                .switchIfEmpty(Mono.defer(() -> {
+                    UUID id = UUID.randomUUID();
+                    return transmissionRepo.save(TransmissionTypeEntity.builder().transmissionTypeId(id).typeName(request.transmissionType()).build());
+                }));
 
         Mono<ManufacturerEntity> manufacturerMono = manufacturerRepo.findByManufacturerName(request.manufacturerName())
-                .switchIfEmpty(manufacturerRepo.save(ManufacturerEntity.builder().manufacturerName(request.manufacturerName()).build()));
+                .switchIfEmpty(Mono.defer(() -> {
+                    UUID id = UUID.randomUUID();
+                    return manufacturerRepo.save(ManufacturerEntity.builder().manufacturerId(id).manufacturerName(request.manufacturerName()).build());
+                }));
 
         Mono<VehicleSizeEntity> sizeMono = sizeRepo.findBySizeName(request.sizeName())
-                .switchIfEmpty(sizeRepo.save(VehicleSizeEntity.builder().sizeName(request.sizeName()).build()));
+                .switchIfEmpty(Mono.defer(() -> {
+                    UUID id = UUID.randomUUID();
+                    return sizeRepo.save(VehicleSizeEntity.builder().vehicleSizeId(id).sizeName(request.sizeName()).build());
+                }));
 
         Mono<VehicleTypeEntity> typeMono = typeRepo.findByTypeName(request.typeName())
-                .switchIfEmpty(typeRepo.save(VehicleTypeEntity.builder().typeName(request.typeName()).build()));
+                .switchIfEmpty(Mono.defer(() -> {
+                    UUID id = UUID.randomUUID();
+                    return typeRepo.save(VehicleTypeEntity.builder().vehicleTypeId(id).typeName(request.typeName()).build());
+                }));
 
         Mono<FuelTypeEntity> fuelMono = fuelRepo.findByFuelTypeName(request.fuelTypeName())
-                .switchIfEmpty(fuelRepo.save(FuelTypeEntity.builder().fuelTypeName(request.fuelTypeName()).build()));
+                .switchIfEmpty(Mono.defer(() -> {
+                    UUID id = UUID.randomUUID();
+                    return fuelRepo.save(FuelTypeEntity.builder().fuelTypeId(id).fuelTypeName(request.fuelTypeName()).build());
+                }));
 
         // 2. Exécution parallèle
         return Mono.zip(makeMono, modelMono, transmissionMono, manufacturerMono, sizeMono, typeMono, fuelMono)
             .flatMap(tuple -> {
-                // 3. Construction de l'objet Vehicle du domaine
+                // Vérification de sécurité pour les logs
+                log.info("IDs résolus - Make: {}, Model: {}", tuple.getT1().getVehicleMakeId(), tuple.getT2().getVehicleModelId());
+
                 Vehicle vehicle = new Vehicle(
-                    null, // ID généré plus tard
+                    null, 
                     tuple.getT1().getVehicleMakeId(),
                     tuple.getT2().getVehicleModelId(),
                     tuple.getT3().getTransmissionTypeId(),
@@ -6684,52 +7133,44 @@ public class VehicleSmartCreationService {
                     tuple.getT5().getVehicleSizeId(),
                     tuple.getT6().getVehicleTypeId(),
                     tuple.getT7().getFuelTypeId(),
-                    
                     request.vehicleSerialNumber(),
                     request.vehicleSerialPhoto(),
                     request.registrationNumber(),
                     request.registrationPhoto(),
                     request.registrationExpiryDate(),
-                    
                     request.tankCapacity(),
                     request.luggageMaxCapacity(),
                     request.totalSeatNumber(),
-                    
                     request.averageFuelConsumptionPerKm(),
                     request.mileageAtStart(),
                     request.mileageSinceCommissioning(),
                     request.vehicleAgeAtStart(),
-                    
                     request.brand(),
                     null, null
                 );
 
-                // 4. Logique "Smart Primary" : On vérifie si l'utilisateur a DÉJÀ des véhicules
+                // 3. Gestion de l'Ownership et Sauvegarde
                 return ownershipRepository.findOwnershipsByPartyId(partyId)
-                        .hasElements() // true si user a déjà au moins un véhicule
-                        .flatMap(hasExistingVehicles -> {
+                        .hasElements()
+                        .flatMap(hasExisting -> {
+                            boolean isPrimary = !hasExisting;
                             
-                            // Si aucun véhicule existant -> C'est le premier -> isPrimary = true
-                            // Sinon -> Ce n'est pas le principal -> isPrimary = false
-                            boolean isPrimary = !hasExistingVehicles;
-                            
-                            log.info("Check Ownership existants pour user {}: Trouvé? {}. Nouveau véhicule sera Primary? {}", 
-                                     partyId, hasExistingVehicles, isPrimary);
-
-                            // 5. Création du Véhicule ET Assignation
                             return manageVehicleUseCase.createVehicle(vehicle)
                                     .flatMap(savedVehicle -> {
+                                        log.info("Véhicule créé avec ID: {}", savedVehicle.vehicleId());
+                                        
                                         VehicleOwnership ownership = new VehicleOwnership(
                                                 null,
                                                 savedVehicle.vehicleId(),
                                                 partyId,
                                                 UsageRole.OWNER,
-                                                isPrimary, // <-- Utilisation du flag calculé dynamiquement
+                                                isPrimary,
                                                 LocalDateTime.now(),
                                                 null
                                         );
                                         
                                         return ownershipRepository.saveOwnership(ownership)
+                                                .doOnSuccess(o -> log.info("Ownership créé pour user {} et vehicle {}", partyId, savedVehicle.vehicleId()))
                                                 .thenReturn(savedVehicle);
                                     });
                         });
@@ -6799,7 +7240,9 @@ import com.yowyob.template.domain.ports.in.ManageVehicleUseCase;
 import com.yowyob.template.domain.ports.out.VehicleRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -6819,58 +7262,85 @@ public class VehicleService implements ManageVehicleUseCase {
     }
 
     @Override
+    @Transactional
     public Mono<Vehicle> updateVehicle(Vehicle vehicle) {
-        // PUT : On remplace tout. Si vehicle contient des nulls, on sauvegarde des nulls.
-        return repositoryPort.findVehicleById(vehicle.vehicleId())
-                .switchIfEmpty(Mono.error(new NotFoundException("Véhicule non trouvé avec l'ID : " + vehicle.vehicleId())))
-                .flatMap(existing -> {
-                    log.info("Mise à jour complète (PUT) du véhicule : {}", vehicle.vehicleId());
-                    // On garde juste les dates de création/update gérées par l'infra si besoin, 
-                    // mais ici on sauvegarde l'objet reçu.
+        UUID id = vehicle.vehicleId();
+        return repositoryPort.findVehicleById(id)
+                .switchIfEmpty(Mono.error(new NotFoundException("Véhicule non trouvé avec l'ID : " + id)))
+                .flatMap(existing -> validateUniqueness(vehicle.vehicleSerialNumber(), vehicle.registrationNumber(), id))
+                .then(Mono.defer(() -> {
+                    log.info("Mise à jour complète (PUT) du véhicule : {}", id);
                     return repositoryPort.saveVehicle(vehicle);
-                });
+                }));
     }
 
     @Override
+    @Transactional
     public Mono<Vehicle> patchVehicle(UUID id, Vehicle partial) {
-        // PATCH : On récupère l'existant et on fusionne
         return repositoryPort.findVehicleById(id)
                 .switchIfEmpty(Mono.error(new NotFoundException("Véhicule non trouvé avec l'ID : " + id)))
                 .flatMap(existing -> {
-                    log.info("Mise à jour partielle (PATCH) du véhicule : {}", id);
+                    // Fusion manuelle
+                    Vehicle merged = mergeVehicle(existing, partial);
                     
-                    // Fusion manuelle : Si partial.field est null, on garde existing.field
-                    Vehicle merged = new Vehicle(
-                            existing.vehicleId(), // L'ID ne change pas
-                            partial.vehicleMakeId() != null ? partial.vehicleMakeId() : existing.vehicleMakeId(),
-                            partial.vehicleModelId() != null ? partial.vehicleModelId() : existing.vehicleModelId(),
-                            partial.transmissionTypeId() != null ? partial.transmissionTypeId() : existing.transmissionTypeId(),
-                            partial.manufacturerId() != null ? partial.manufacturerId() : existing.manufacturerId(),
-                            partial.vehicleSizeId() != null ? partial.vehicleSizeId() : existing.vehicleSizeId(),
-                            partial.vehicleTypeId() != null ? partial.vehicleTypeId() : existing.vehicleTypeId(),
-                            partial.fuelTypeId() != null ? partial.fuelTypeId() : existing.fuelTypeId(),
-                            
-                            partial.vehicleSerialNumber() != null ? partial.vehicleSerialNumber() : existing.vehicleSerialNumber(),
-                            partial.vehicleSerialPhoto() != null ? partial.vehicleSerialPhoto() : existing.vehicleSerialPhoto(),
-                            partial.registrationNumber() != null ? partial.registrationNumber() : existing.registrationNumber(),
-                            partial.registrationPhoto() != null ? partial.registrationPhoto() : existing.registrationPhoto(),
-                            partial.registrationExpiryDate() != null ? partial.registrationExpiryDate() : existing.registrationExpiryDate(),
-                            
-                            partial.tankCapacity() != null ? partial.tankCapacity() : existing.tankCapacity(),
-                            partial.luggageMaxCapacity() != null ? partial.luggageMaxCapacity() : existing.luggageMaxCapacity(),
-                            partial.totalSeatNumber() != null ? partial.totalSeatNumber() : existing.totalSeatNumber(),
-                            partial.averageFuelConsumptionPerKm() != null ? partial.averageFuelConsumptionPerKm() : existing.averageFuelConsumptionPerKm(),
-                            partial.mileageAtStart() != null ? partial.mileageAtStart() : existing.mileageAtStart(),
-                            partial.mileageSinceCommissioning() != null ? partial.mileageSinceCommissioning() : existing.mileageSinceCommissioning(),
-                            partial.vehicleAgeAtStart() != null ? partial.vehicleAgeAtStart() : existing.vehicleAgeAtStart(),
-                            
-                            partial.brand() != null ? partial.brand() : existing.brand(),
-                            existing.createdAt(), // On ne touche pas à la date de création
-                            null // updated_at sera géré par la DB ou l'adapter
-                    );
-
+                    // Validation sur l'objet fusionné
+                    return validateUniqueness(merged.vehicleSerialNumber(), merged.registrationNumber(), id)
+                           .thenReturn(merged);
+                })
+                .flatMap(merged -> {
+                    log.info("Mise à jour partielle (PATCH) du véhicule : {}", id);
                     return repositoryPort.saveVehicle(merged);
                 });
+    }
+
+    // Méthode helper pour vérifier l'unicité avant update
+    private Mono<Void> validateUniqueness(String serialNumber, String registrationNumber, UUID id) {
+        return Mono.zip(
+            repositoryPort.existsBySerialNumberAndIdNot(serialNumber, id),
+            repositoryPort.existsByRegistrationNumberAndIdNot(registrationNumber, id)
+        ).flatMap(tuple -> {
+            boolean serialExists = tuple.getT1();
+            boolean regExists = tuple.getT2();
+            
+            if (serialExists) {
+                return Mono.error(new DuplicateKeyException("vehicle_serial_number exists"));
+            }
+            if (regExists) {
+                return Mono.error(new DuplicateKeyException("registration_number exists"));
+            }
+            return Mono.empty();
+        });
+    }
+
+    private Vehicle mergeVehicle(Vehicle existing, Vehicle partial) {
+        return new Vehicle(
+                existing.vehicleId(),
+                partial.vehicleMakeId() != null ? partial.vehicleMakeId() : existing.vehicleMakeId(),
+                partial.vehicleModelId() != null ? partial.vehicleModelId() : existing.vehicleModelId(),
+                partial.transmissionTypeId() != null ? partial.transmissionTypeId() : existing.transmissionTypeId(),
+                partial.manufacturerId() != null ? partial.manufacturerId() : existing.manufacturerId(),
+                partial.vehicleSizeId() != null ? partial.vehicleSizeId() : existing.vehicleSizeId(),
+                partial.vehicleTypeId() != null ? partial.vehicleTypeId() : existing.vehicleTypeId(),
+                partial.fuelTypeId() != null ? partial.fuelTypeId() : existing.fuelTypeId(),
+                
+                partial.vehicleSerialNumber() != null ? partial.vehicleSerialNumber() : existing.vehicleSerialNumber(),
+                partial.vehicleSerialPhoto() != null ? partial.vehicleSerialPhoto() : existing.vehicleSerialPhoto(),
+                partial.registrationNumber() != null ? partial.registrationNumber() : existing.registrationNumber(),
+                partial.registrationPhoto() != null ? partial.registrationPhoto() : existing.registrationPhoto(),
+                partial.registrationExpiryDate() != null ? partial.registrationExpiryDate() : existing.registrationExpiryDate(),
+                
+                partial.tankCapacity() != null ? partial.tankCapacity() : existing.tankCapacity(),
+                partial.luggageMaxCapacity() != null ? partial.luggageMaxCapacity() : existing.luggageMaxCapacity(),
+                partial.totalSeatNumber() != null ? partial.totalSeatNumber() : existing.totalSeatNumber(),
+                partial.averageFuelConsumptionPerKm() != null ? partial.averageFuelConsumptionPerKm() : existing.averageFuelConsumptionPerKm(),
+                partial.mileageAtStart() != null ? partial.mileageAtStart() : existing.mileageAtStart(),
+                partial.mileageSinceCommissioning() != null ? partial.mileageSinceCommissioning() : existing.mileageSinceCommissioning(),
+                partial.vehicleAgeAtStart() != null ? partial.vehicleAgeAtStart() : existing.vehicleAgeAtStart(),
+                
+                partial.brand() != null ? partial.brand() : existing.brand(),
+                existing.createdAt(),
+                null 
+        );
     }
 
     @Override
