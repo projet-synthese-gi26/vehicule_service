@@ -12,7 +12,7 @@ public interface ManageVehicleUseCase {
 
     Mono<Vehicle> updateVehicle(Vehicle vehicle);
 
-    // --> AJOUT DE CETTE MÉTHODE
+    // C'est cette méthode qui manque souvent et cause le rouge
     Mono<Vehicle> patchVehicle(UUID id, Vehicle partialVehicle); 
 
     Flux<Vehicle> getAllVehicles();
