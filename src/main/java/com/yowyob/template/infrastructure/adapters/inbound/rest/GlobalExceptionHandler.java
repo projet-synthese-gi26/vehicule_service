@@ -19,6 +19,18 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    // --- NOUVEAU : Catch-All pour les erreurs inattendues (NPE, etc.) ---
+    @ExceptionHandler(Exception.class)
+    public ProblemDetail handleGenericException(Exception ex) {
+        log.error("ERREUR NON GÉRÉE (500) : ", ex); // Log complet de la stacktrace
+        
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+        problem.setTitle("Erreur Serveur Interne");
+        problem.setType(URI.create("errors/internal-server-error"));
+        problem.setProperty("exception_type", ex.getClass().getName());
+        return problem;
+    }
+
     @ExceptionHandler(StockFullException.class)
     public ProblemDetail handleStockException(StockFullException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
@@ -50,7 +62,6 @@ public class GlobalExceptionHandler {
     
     @ExceptionHandler(DuplicateKeyException.class)
     public ProblemDetail handleDuplicateKeyException(DuplicateKeyException ex) {
-        // On log l'erreur technique pour le développeur
         log.error("Erreur de clé dupliquée (SQL) : ", ex);
 
         String message = extractConstraintName(ex.getMessage());
@@ -58,8 +69,6 @@ public class GlobalExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, message);
         problem.setTitle("Conflit de données (Doublon)");
         problem.setType(URI.create("errors/duplicate-key"));
-        
-        // On ajoute le détail technique pour aider au debug (visible dans le JSON)
         problem.setProperty("technical_detail", ex.getCause() != null ? ex.getCause().getMessage() : ex.getMessage());
         
         return problem;
@@ -70,7 +79,6 @@ public class GlobalExceptionHandler {
         log.error("Violation d'intégrité (SQL) : ", ex);
         String message = extractConstraintMessage(ex.getMessage());
         
-        // Si c'est une violation de clé étrangère, retourner 400
         HttpStatus status = ex.getMessage() != null && ex.getMessage().contains("foreign key") 
                 ? HttpStatus.BAD_REQUEST 
                 : HttpStatus.CONFLICT;
@@ -91,40 +99,20 @@ public class GlobalExceptionHandler {
         return problem;
     }
     
-    /**
-     * Extrait le nom de la contrainte du message d'erreur pour DuplicateKeyException
-     */
     private String extractConstraintName(String message) {
-        if (message == null) {
-            return "Une entrée avec cette valeur existe déjà";
-        }
-        
-        // Gestion spécifique des contraintes définies dans schema.sql
-        if (message.contains("idx_unique_primary_vehicle_per_role")) {
-            return "Vous avez déjà un véhicule défini comme 'Principal'. Un seul est autorisé par rôle.";
-        }
-        if (message.contains("vehicle_serial_number")) {
-            return "Un véhicule avec ce numéro de série (VIN) existe déjà.";
-        }
-        if (message.contains("registration_number")) {
-            return "Un véhicule avec ce numéro d'immatriculation existe déjà.";
-        }
-        // Pour les tables de référence (Smart Creation)
+        if (message == null) return "Une entrée avec cette valeur existe déjà";
+        if (message.contains("idx_unique_primary_vehicle_per_role")) return "Vous avez déjà un véhicule défini comme 'Principal'. Un seul est autorisé par rôle.";
+        if (message.contains("vehicle_serial_number")) return "Un véhicule avec ce numéro de série (VIN) existe déjà.";
+        if (message.contains("registration_number")) return "Un véhicule avec ce numéro d'immatriculation existe déjà.";
         if (message.contains("make_name")) return "Cette marque existe déjà (concurrence).";
         if (message.contains("model_name")) return "Ce modèle existe déjà (concurrence).";
-        
         return "Une entrée avec cette valeur existe déjà.";
     }
     
-    /**
-     * Extrait un message lisible pour les violations d'intégrité
-     */
     private String extractConstraintMessage(String message) {
         if (message == null) return "Violation de contrainte d'intégrité des données";
-        
         if (message.contains("vehicleownership_vehicle_id_fkey")) return "Le véhicule spécifié n'existe pas.";
         if (message.contains("vehicleownership_party_id_fkey")) return "L'utilisateur spécifié n'existe pas.";
-        
         return "Violation de contrainte d'intégrité des données (Clé étrangère ou Check failed).";
     }
 }
