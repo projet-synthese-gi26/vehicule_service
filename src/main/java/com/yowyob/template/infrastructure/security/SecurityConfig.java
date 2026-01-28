@@ -2,6 +2,7 @@ package com.yowyob.template.infrastructure.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod; // <--- Import nécessaire
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
@@ -10,11 +11,10 @@ import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.context.NoOpServerSecurityContextRepository;
 import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.reactive.CorsWebFilter; // <-- Important
+import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import reactor.core.publisher.Mono;
 
-import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -33,7 +33,7 @@ public class SecurityConfig {
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         return http
-                // On désactive le CORS de Spring Security car on utilise le CorsWebFilter plus bas
+                // On laisse le CorsWebFilter gérer le CORS
                 .cors(ServerHttpSecurity.CorsSpec::disable)
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .securityContextRepository(NoOpServerSecurityContextRepository.getInstance())
@@ -48,21 +48,25 @@ public class SecurityConfig {
                         })
                 )
                 .authorizeExchange(exchanges -> exchanges
+                        // 👇 INDISPENSABLE : On autorise TOUTES les requêtes OPTIONS (CORS preflight) sans token
+                        .pathMatchers(HttpMethod.OPTIONS).permitAll()
+                        
+                        // Tes routes publiques (Swagger, etc.)
                         .pathMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/webjars/**", "/actuator/**").permitAll()
+                        
+                        // Tout le reste nécessite un token
                         .anyExchange().authenticated()
                 )
                 .addFilterAt(jwtAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
                 .build();
     }
 
-    /**
-     * Configuration CORS "Nucléaire" pour WebFlux.
-     * C'est le moyen le plus efficace pour éviter les blocages en dev.
-     */
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfig = new CorsConfiguration();
-        corsConfig.setAllowedOriginPatterns(List.of("*")); // Plus permissif que setAllowedOrigins
+        // En prod, l'étoile '*' peut être bloquée par certains navigateurs si allowCredentials=true
+        // Mieux vaut utiliser setAllowedOriginPatterns qui est plus souple
+        corsConfig.setAllowedOriginPatterns(List.of("*")); 
         corsConfig.setMaxAge(8000L);
         corsConfig.addAllowedMethod("*");
         corsConfig.addAllowedHeader("*");
