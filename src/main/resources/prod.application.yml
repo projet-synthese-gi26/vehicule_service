@@ -9,6 +9,16 @@ spring:
   docker:
     compose:
       enabled: false
+  # Configuration Multipart (Uploads)
+  webflux:
+    multipart:
+      max-in-memory-size: 256KB # Taille en RAM avant écriture disque (si besoin)
+      max-file-size: 10MB       # Taille max d'un fichier
+      max-request-size: 10MB    # Taille max de la requête totale
+
+  # Configuration des Codecs (Pour éviter les erreurs "DataBufferLimitException")
+  codec:
+    max-in-memory-size: 10MB
 
   # POSTGRESQL (R2DBC)
   r2dbc:

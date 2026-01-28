@@ -1,24 +1,22 @@
 package com.yowyob.template.infrastructure.config;
 
-import com.yowyob.template.infrastructure.adapters.outbound.external.client.StockApiClient;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.reactive.function.client.ExchangeStrategies; // Import important
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.support.WebClientAdapter;
-import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 
 @Configuration
 public class WebClientConfig {
 
     @Bean
-    public StockApiClient stockApiClient(WebClient.Builder builder,
-            @Value("${application.external.stock-service-url}") String url) {
+    public WebClient.Builder webClientBuilder() {
+        // Augmenter la taille du buffer mémoire à 16MB (par défaut 256KB)
+        final int size = 16 * 1024 * 1024;
+        final ExchangeStrategies strategies = ExchangeStrategies.builder()
+                .codecs(codecs -> codecs.defaultCodecs().maxInMemorySize(size))
+                .build();
 
-        WebClient webClient = builder.baseUrl(url).build();
-        WebClientAdapter adapter = WebClientAdapter.create(webClient);
-        HttpServiceProxyFactory factory = HttpServiceProxyFactory.builderFor(adapter).build();
-
-        return factory.createClient(StockApiClient.class);
+        return WebClient.builder()
+                .exchangeStrategies(strategies);
     }
 }
