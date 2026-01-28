@@ -18,13 +18,9 @@ public interface VehicleMapper {
     Vehicle toDomain(VehicleRequest request);
 
     VehicleResponse toResponse(Vehicle domain);
-
-    // Vehicle (domaine) → VehicleEntity (pour persistance)
-    @Mapping(target = "vehicleId", ignore = true) // ID DB généré, ignore si création
-    @Mapping(target = "createdAt", ignore = true) // Créé par DB
+    @Mapping(target = "createdAt", ignore = true) // Créé par DB/Auditing
     @Mapping(target = "updatedAt", ignore = true) // Mise à jour automatique
     VehicleEntity toEntity(Vehicle domain);
 
     Vehicle toDomain(VehicleEntity entity);
-
 }

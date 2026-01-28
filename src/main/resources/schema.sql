@@ -21,47 +21,48 @@ DROP TABLE IF EXISTS VehicleModel CASCADE;
 
 -- ================================================================================================
 -- TABLES DE RÉFÉRENCE (Lookup Tables)
+-- Ajout de contraintes UNIQUE pour éviter les doublons lors du "Smart Create"
 -- ================================================================================================
 
 CREATE TABLE VehicleModel (
     vehicle_model_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    model_name TEXT NOT NULL,
+    model_name TEXT NOT NULL UNIQUE, -- Ajout UNIQUE
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ
 );
 
 CREATE TABLE TransmissionType (
     transmission_type_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    type_name TEXT NOT NULL,
+    type_name TEXT NOT NULL UNIQUE, -- Ajout UNIQUE
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ
 );
 
 CREATE TABLE VehicleMake (
     vehicle_make_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    make_name TEXT NOT NULL
+    make_name TEXT NOT NULL UNIQUE -- Ajout UNIQUE
 );
 
 CREATE TABLE VehicleSize (
     vehicle_size_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    size_name TEXT NOT NULL,
+    size_name TEXT NOT NULL UNIQUE, -- Ajout UNIQUE
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ
 );
 
 CREATE TABLE FuelType (
     fuel_type_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    fuel_type_name TEXT NOT NULL
+    fuel_type_name TEXT NOT NULL UNIQUE -- Ajout UNIQUE
 );
 
 CREATE TABLE VehicleType (
     vehicle_type_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    type_name TEXT NOT NULL
+    type_name TEXT NOT NULL UNIQUE -- Ajout UNIQUE
 );
 
 CREATE TABLE Manufacturer (
     manufacturer_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    manufacturer_name TEXT NOT NULL
+    manufacturer_name TEXT NOT NULL UNIQUE -- Ajout UNIQUE
 );
 
 -- ================================================================================================

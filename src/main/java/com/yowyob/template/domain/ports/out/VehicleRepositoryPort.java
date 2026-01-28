@@ -1,4 +1,3 @@
-//---> PATH: src/main/java/com/yowyob/template/domain/ports/out/VehicleRepositoryPort.java
 package com.yowyob.template.domain.ports.out;
 
 import com.yowyob.template.domain.model.vehicle.Vehicle;
@@ -18,4 +17,8 @@ public interface VehicleRepositoryPort {
     Mono<Vehicle> findVehicleById(UUID id);
 
     Mono<Void> deleteVehicle(UUID id);
+
+    // --- Validation d'unicité pour Update/Patch ---
+    Mono<Boolean> existsBySerialNumberAndIdNot(String serialNumber, UUID id);
+    Mono<Boolean> existsByRegistrationNumberAndIdNot(String registrationNumber, UUID id);
 }

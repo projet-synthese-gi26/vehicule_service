@@ -1,4 +1,3 @@
-//---> PATH: src/main/java/com/yowyob/template/infrastructure/adapters/outbound/persistence/PostgreVehicleAdapter.java
 package com.yowyob.template.infrastructure.adapters.outbound.persistence;
 
 import com.yowyob.template.domain.model.vehicle.Vehicle;
@@ -21,9 +20,6 @@ public class PostgreVehicleAdapter implements VehicleRepositoryPort {
 
     @Override
     public Mono<Vehicle> saveVehicle(Vehicle vehicle) {
-        // Le mapper gère la conversion. Si vehicle.vehicleId est présent, 
-        // l'entité aura l'ID, et R2DBC fera un UPDATE (isNew() = false).
-        // Si c'est null, R2DBC fera un INSERT.
         return Mono.just(mapper.toEntity(vehicle))
                 .flatMap(repository::save)
                 .map(mapper::toDomain);
@@ -34,6 +30,7 @@ public class PostgreVehicleAdapter implements VehicleRepositoryPort {
         return repository.findAll()
                 .map(mapper::toDomain);
     }
+
     @Override
     public Flux<Vehicle> findVehiclesByPartyId(UUID partyId) {
         return repository.findByPartyId(partyId)
@@ -49,5 +46,17 @@ public class PostgreVehicleAdapter implements VehicleRepositoryPort {
     @Override
     public Mono<Void> deleteVehicle(UUID id) {
         return repository.deleteById(id);
+    }
+
+    @Override
+    public Mono<Boolean> existsBySerialNumberAndIdNot(String serialNumber, UUID id) {
+        if (serialNumber == null) return Mono.just(false);
+        return repository.existsByVehicleSerialNumberAndVehicleIdNot(serialNumber, id);
+    }
+
+    @Override
+    public Mono<Boolean> existsByRegistrationNumberAndIdNot(String registrationNumber, UUID id) {
+        if (registrationNumber == null) return Mono.just(false);
+        return repository.existsByRegistrationNumberAndVehicleIdNot(registrationNumber, id);
     }
 }

@@ -1,4 +1,3 @@
-//---> PATH: src/main/java/com/yowyob/template/domain/ports/in/ManageVehicleUseCase.java
 package com.yowyob.template.domain.ports.in;
 
 import com.yowyob.template.domain.model.vehicle.Vehicle;
@@ -12,6 +11,9 @@ public interface ManageVehicleUseCase {
     Mono<Vehicle> createVehicle(Vehicle vehicle);
 
     Mono<Vehicle> updateVehicle(Vehicle vehicle);
+
+    // --> AJOUT DE CETTE MÉTHODE
+    Mono<Vehicle> patchVehicle(UUID id, Vehicle partialVehicle); 
 
     Flux<Vehicle> getAllVehicles();
 
