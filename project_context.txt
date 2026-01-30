@@ -1,5 +1,5 @@
 # Contexte du Projet : Fleet & Geofence API
-Généré le : Wed 28 Jan 2026 11:32:54 PM WAT
+Généré le : Fri 30 Jan 2026 06:08:53 AM WAT
 Framework : Spring Boot WebFlux (Reactive)
 
 ## 1. Arborescence du Projet
@@ -560,7 +560,7 @@ La roadmap est suivie dans `todo.md`.
 
 
 ### Premiere mission
-ceci est le debogage des crud des vehicules,via le service simplifie.actuelleemnt create,get marchent,masi pas put et patch car on med idt entite deja existante. c'est ca qu'on doit corriger,j'avaias deja commcence a resourdre ca avec une autre ia mais mes tokens sont finis.aide moi a le faire,commence par me dire quelles son les modiffications a mettre en palce afin que ca marche.```
+aide moi a debugger,j'ai code le crud vehicules et les images,ca passait,j'ai modifie les ficheirs de config et le web api clie nt et boo crash```
 
 ---
 ### Fichier : `./todo.md`
@@ -4542,6 +4542,18 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    // --- NOUVEAU : Catch-All pour les erreurs inattendues (NPE, etc.) ---
+    @ExceptionHandler(Exception.class)
+    public ProblemDetail handleGenericException(Exception ex) {
+        log.error("ERREUR NON GÉRÉE (500) : ", ex); // Log complet de la stacktrace
+        
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+        problem.setTitle("Erreur Serveur Interne");
+        problem.setType(URI.create("errors/internal-server-error"));
+        problem.setProperty("exception_type", ex.getClass().getName());
+        return problem;
+    }
+
     @ExceptionHandler(StockFullException.class)
     public ProblemDetail handleStockException(StockFullException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
@@ -4573,7 +4585,6 @@ public class GlobalExceptionHandler {
     
     @ExceptionHandler(DuplicateKeyException.class)
     public ProblemDetail handleDuplicateKeyException(DuplicateKeyException ex) {
-        // On log l'erreur technique pour le développeur
         log.error("Erreur de clé dupliquée (SQL) : ", ex);
 
         String message = extractConstraintName(ex.getMessage());
@@ -4581,8 +4592,6 @@ public class GlobalExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, message);
         problem.setTitle("Conflit de données (Doublon)");
         problem.setType(URI.create("errors/duplicate-key"));
-        
-        // On ajoute le détail technique pour aider au debug (visible dans le JSON)
         problem.setProperty("technical_detail", ex.getCause() != null ? ex.getCause().getMessage() : ex.getMessage());
         
         return problem;
@@ -4593,7 +4602,6 @@ public class GlobalExceptionHandler {
         log.error("Violation d'intégrité (SQL) : ", ex);
         String message = extractConstraintMessage(ex.getMessage());
         
-        // Si c'est une violation de clé étrangère, retourner 400
         HttpStatus status = ex.getMessage() != null && ex.getMessage().contains("foreign key") 
                 ? HttpStatus.BAD_REQUEST 
                 : HttpStatus.CONFLICT;
@@ -4614,40 +4622,20 @@ public class GlobalExceptionHandler {
         return problem;
     }
     
-    /**
-     * Extrait le nom de la contrainte du message d'erreur pour DuplicateKeyException
-     */
     private String extractConstraintName(String message) {
-        if (message == null) {
-            return "Une entrée avec cette valeur existe déjà";
-        }
-        
-        // Gestion spécifique des contraintes définies dans schema.sql
-        if (message.contains("idx_unique_primary_vehicle_per_role")) {
-            return "Vous avez déjà un véhicule défini comme 'Principal'. Un seul est autorisé par rôle.";
-        }
-        if (message.contains("vehicle_serial_number")) {
-            return "Un véhicule avec ce numéro de série (VIN) existe déjà.";
-        }
-        if (message.contains("registration_number")) {
-            return "Un véhicule avec ce numéro d'immatriculation existe déjà.";
-        }
-        // Pour les tables de référence (Smart Creation)
+        if (message == null) return "Une entrée avec cette valeur existe déjà";
+        if (message.contains("idx_unique_primary_vehicle_per_role")) return "Vous avez déjà un véhicule défini comme 'Principal'. Un seul est autorisé par rôle.";
+        if (message.contains("vehicle_serial_number")) return "Un véhicule avec ce numéro de série (VIN) existe déjà.";
+        if (message.contains("registration_number")) return "Un véhicule avec ce numéro d'immatriculation existe déjà.";
         if (message.contains("make_name")) return "Cette marque existe déjà (concurrence).";
         if (message.contains("model_name")) return "Ce modèle existe déjà (concurrence).";
-        
         return "Une entrée avec cette valeur existe déjà.";
     }
     
-    /**
-     * Extrait un message lisible pour les violations d'intégrité
-     */
     private String extractConstraintMessage(String message) {
         if (message == null) return "Violation de contrainte d'intégrité des données";
-        
         if (message.contains("vehicleownership_vehicle_id_fkey")) return "Le véhicule spécifié n'existe pas.";
         if (message.contains("vehicleownership_party_id_fkey")) return "L'utilisateur spécifié n'existe pas.";
-        
         return "Violation de contrainte d'intégrité des données (Clé étrangère ou Check failed).";
     }
 }```
@@ -5410,13 +5398,20 @@ public class VehicleMediaController {
 ```java
 package com.yowyob.template.infrastructure.config;
 
+import com.yowyob.template.infrastructure.adapters.outbound.external.client.StockApiClient;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.reactive.function.client.ExchangeStrategies; // Import important
+import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.support.WebClientAdapter;
+import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 
 @Configuration
 public class WebClientConfig {
+
+    @Value("${application.external.stock-service-url}")
+    private String stockServiceUrl;
 
     @Bean
     public WebClient.Builder webClientBuilder() {
@@ -5428,6 +5423,21 @@ public class WebClientConfig {
 
         return WebClient.builder()
                 .exchangeStrategies(strategies);
+    }
+
+    @Bean
+    public StockApiClient stockApiClient(WebClient.Builder builder) {
+        // 1. Création du WebClient dédié avec l'URL de base
+        WebClient client = builder
+                .baseUrl(stockServiceUrl)
+                .build();
+
+        // 2. Création de l'adaptateur et de la factory (Spring Boot 3.2+)
+        WebClientAdapter adapter = WebClientAdapter.create(client);
+        HttpServiceProxyFactory factory = HttpServiceProxyFactory.builderFor(adapter).build();
+
+        // 3. Génération du proxy pour l'interface
+        return factory.createClient(StockApiClient.class);
     }
 }```
 
@@ -7073,59 +7083,76 @@ public class VehicleSmartCreationService {
     public Mono<Vehicle> createVehicleFromNames(SimplifiedVehicleRequest request, UUID partyId) {
         log.info("Smart Creation: Début pour user {}", partyId);
 
-        // 1. Get or Create avec génération d'UUID explicite en Java
-        // Cela garantit que l'objet retourné A TOUJOURS un ID, même si la DB ne le renvoie pas
-        
+        // 1. Get or Create Lookups
+        // CORRECTION : On ne set PAS l'ID (il reste null). 
+        // Spring Data R2DBC fera un INSERT et PostgreSQL générera l'UUID.
+
         Mono<VehicleMakeEntity> makeMono = makeRepo.findByMakeName(request.makeName())
                 .switchIfEmpty(Mono.defer(() -> {
-                    UUID id = UUID.randomUUID();
-                    return makeRepo.save(VehicleMakeEntity.builder().vehicleMakeId(id).makeName(request.makeName()).build());
+                    log.debug("Création Make: {}", request.makeName());
+                    return makeRepo.save(VehicleMakeEntity.builder()
+                            // .vehicleMakeId(null) // Laisser implicitement null
+                            .makeName(request.makeName())
+                            .build());
                 }));
 
         Mono<VehicleModelEntity> modelMono = modelRepo.findByModelName(request.modelName())
                 .switchIfEmpty(Mono.defer(() -> {
-                    UUID id = UUID.randomUUID();
-                    return modelRepo.save(VehicleModelEntity.builder().vehicleModelId(id).modelName(request.modelName()).build());
+                    log.debug("Création Model: {}", request.modelName());
+                    return modelRepo.save(VehicleModelEntity.builder()
+                            .modelName(request.modelName())
+                            .build());
                 }));
 
         Mono<TransmissionTypeEntity> transmissionMono = transmissionRepo.findByTypeName(request.transmissionType())
                 .switchIfEmpty(Mono.defer(() -> {
-                    UUID id = UUID.randomUUID();
-                    return transmissionRepo.save(TransmissionTypeEntity.builder().transmissionTypeId(id).typeName(request.transmissionType()).build());
+                    log.debug("Création Transmission: {}", request.transmissionType());
+                    return transmissionRepo.save(TransmissionTypeEntity.builder()
+                            .typeName(request.transmissionType())
+                            .build());
                 }));
 
         Mono<ManufacturerEntity> manufacturerMono = manufacturerRepo.findByManufacturerName(request.manufacturerName())
                 .switchIfEmpty(Mono.defer(() -> {
-                    UUID id = UUID.randomUUID();
-                    return manufacturerRepo.save(ManufacturerEntity.builder().manufacturerId(id).manufacturerName(request.manufacturerName()).build());
+                    log.debug("Création Manufacturer: {}", request.manufacturerName());
+                    return manufacturerRepo.save(ManufacturerEntity.builder()
+                            .manufacturerName(request.manufacturerName())
+                            .build());
                 }));
 
         Mono<VehicleSizeEntity> sizeMono = sizeRepo.findBySizeName(request.sizeName())
                 .switchIfEmpty(Mono.defer(() -> {
-                    UUID id = UUID.randomUUID();
-                    return sizeRepo.save(VehicleSizeEntity.builder().vehicleSizeId(id).sizeName(request.sizeName()).build());
+                    log.debug("Création Size: {}", request.sizeName());
+                    return sizeRepo.save(VehicleSizeEntity.builder()
+                            .sizeName(request.sizeName())
+                            .build());
                 }));
 
         Mono<VehicleTypeEntity> typeMono = typeRepo.findByTypeName(request.typeName())
                 .switchIfEmpty(Mono.defer(() -> {
-                    UUID id = UUID.randomUUID();
-                    return typeRepo.save(VehicleTypeEntity.builder().vehicleTypeId(id).typeName(request.typeName()).build());
+                    log.debug("Création Type: {}", request.typeName());
+                    return typeRepo.save(VehicleTypeEntity.builder()
+                            .typeName(request.typeName())
+                            .build());
                 }));
 
         Mono<FuelTypeEntity> fuelMono = fuelRepo.findByFuelTypeName(request.fuelTypeName())
                 .switchIfEmpty(Mono.defer(() -> {
-                    UUID id = UUID.randomUUID();
-                    return fuelRepo.save(FuelTypeEntity.builder().fuelTypeId(id).fuelTypeName(request.fuelTypeName()).build());
+                    log.debug("Création Fuel: {}", request.fuelTypeName());
+                    return fuelRepo.save(FuelTypeEntity.builder()
+                            .fuelTypeName(request.fuelTypeName())
+                            .build());
                 }));
 
         // 2. Exécution parallèle
         return Mono.zip(makeMono, modelMono, transmissionMono, manufacturerMono, sizeMono, typeMono, fuelMono)
             .flatMap(tuple -> {
-                // Vérification de sécurité pour les logs
-                log.info("IDs résolus - Make: {}, Model: {}", tuple.getT1().getVehicleMakeId(), tuple.getT2().getVehicleModelId());
+                log.info("Tous les lookups sont résolus. Préparation du véhicule.");
 
+                // Note: Les entités dans 'tuple' ont maintenant des IDs générés par la DB
+                
                 Vehicle vehicle = new Vehicle(
-                    null, 
+                    null, // ID null pour déclencher l'INSERT du véhicule
                     tuple.getT1().getVehicleMakeId(),
                     tuple.getT2().getVehicleModelId(),
                     tuple.getT3().getTransmissionTypeId(),
@@ -7157,7 +7184,10 @@ public class VehicleSmartCreationService {
                             
                             return manageVehicleUseCase.createVehicle(vehicle)
                                     .flatMap(savedVehicle -> {
-                                        log.info("Véhicule créé avec ID: {}", savedVehicle.vehicleId());
+                                        if (savedVehicle.vehicleId() == null) {
+                                            return Mono.error(new RuntimeException("CRITIQUE: Le véhicule sauvegardé n'a pas d'ID (Problème R2DBC/DB)"));
+                                        }
+                                        log.info("Véhicule sauvegardé avec succès, ID: {}", savedVehicle.vehicleId());
                                         
                                         VehicleOwnership ownership = new VehicleOwnership(
                                                 null,
@@ -7170,11 +7200,12 @@ public class VehicleSmartCreationService {
                                         );
                                         
                                         return ownershipRepository.saveOwnership(ownership)
-                                                .doOnSuccess(o -> log.info("Ownership créé pour user {} et vehicle {}", partyId, savedVehicle.vehicleId()))
+                                                .doOnSuccess(o -> log.info("Ownership créé."))
                                                 .thenReturn(savedVehicle);
                                     });
                         });
-            });
+            })
+            .doOnError(e -> log.error("Erreur durant le Smart Create : ", e));
     }
 }```
 
