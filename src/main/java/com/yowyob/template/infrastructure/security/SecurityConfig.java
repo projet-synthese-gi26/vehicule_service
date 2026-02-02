@@ -53,6 +53,9 @@ public class SecurityConfig {
                         
                         // Tes routes publiques (Swagger, etc.)
                         .pathMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/webjars/**", "/actuator/**").permitAll()
+
+                        // Route publique: véhicules par utilisateur
+                        .pathMatchers(HttpMethod.GET, "/vehicles/user/**").permitAll()
                         
                         // Tout le reste nécessite un token
                         .anyExchange().authenticated()
