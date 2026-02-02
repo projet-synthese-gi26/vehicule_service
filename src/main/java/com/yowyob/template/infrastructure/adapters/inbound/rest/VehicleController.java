@@ -103,6 +103,13 @@ public class VehicleController {
                 .map(mapper::toResponse);
     }
 
+    @GetMapping("/user/{userId}")
+    @Operation(summary = "Lister les véhicules d'un utilisateur", description = "Retourne les véhicules associés à l'utilisateur indiqué.")
+    public Flux<VehicleResponse> getVehiclesByUserId(@PathVariable UUID userId) {
+        return manageVehicleUseCase.getVehiclesByOwner(userId)
+                .map(mapper::toResponse);
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Obtenir un véhicule par son ID")
     @SecurityRequirement(name = "bearerAuth")
