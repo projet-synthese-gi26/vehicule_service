@@ -1,0 +1,104 @@
+server:
+  port: 8080
+  forward-headers-strategy: framework
+
+spring:
+  application:
+    name: vehicule-service
+    
+  docker:
+    compose:
+      enabled: false # On laisse ton docker-compose.prod.yml gérer l'infra
+      
+  # Configuration Multipart (Uploads)
+  webflux:
+    multipart:
+      max-in-memory-size: 256KB
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  # Configuration des Codecs
+  codec:
+    max-in-memory-size: 10MB
+
+  # POSTGRESQL (R2DBC)
+  r2dbc:
+    # Correspond à DB_HOST=postgres dans le docker-compose
+    url: r2dbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:reactivedb}
+    username: ${DB_USERNAME:user}
+    password: ${DB_PASSWORD:password}
+    pool:
+      enabled: true
+      initial-size: 2
+      max-size: 10
+      max-idle-time: 30m
+      acquire-retry: 3
+      validation-query: SELECT 1
+  sql:
+    init:
+      mode: always
+
+  # REDIS (Standalone)
+  # Alignée avec l'image 'redis:7-alpine' du docker-compose
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      # Si ton docker-compose ne définit pas de password pour redis, laisse vide ou gère le cas
+      password: ${REDIS_PASSWORD:} 
+
+  # KAFKA 
+  kafka:
+    # Correspond à KAFKA_HOST=kafka dans le docker-compose
+    bootstrap-servers: ${KAFKA_HOST:kafka}:${KAFKA_PORT:9092}
+    consumer:
+      group-id: vehicle-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+# CUSTOM CONFIG 
+application:
+  external:
+    # ⚠️ Correction Importante : Port 8080 (interne docker), pas 8081 (externe)
+    stock-service-url: http://${EXTERNAL_HOST:stock-mock}:8080
+    media-service-url: https://media-service.pynfi.com
+
+  kafka:
+    topics:
+      product-events: product-events-topic
+
+# MONITORING
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ["health","info","prometheus"]
+  endpoint:
+    health:
+      show-details: "always"
+      probes:
+        enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# AUTH SERVICE
+auth:
+  service:
+    url: https://auth-service.pynfi.com
+
+# RESILIENCE4J 
+resilience4j:
+  circuitbreaker:
+    instances:
+      stock-service:
+        failureRateThreshold: 50
+        waitDurationInOpenState: 5s
+        slidingWindowSize: 5
