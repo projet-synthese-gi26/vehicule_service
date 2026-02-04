@@ -34,6 +34,13 @@ public interface VehicleDetailsRepositoryPort {
 
     Mono<Void> deleteKeyword(UUID id);
 
+    // Inclusion
+    Mono<VehicleInclusion> saveInclusion(VehicleInclusion inclusion);
+
+    Flux<VehicleInclusion> findInclusionsByVehicleId(UUID vehicleId);
+
+    Mono<Void> deleteInclusion(UUID id);
+
     // Review
     Mono<VehicleReview> saveReview(VehicleReview review);
 

@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS VehicleOwnership CASCADE;
 DROP TABLE IF EXISTS VehicleReview CASCADE;
 DROP TABLE IF EXISTS VehicleIllustrationImage CASCADE;
 DROP TABLE IF EXISTS VehicleCanTransport CASCADE;
+DROP TABLE IF EXISTS VehicleInclusion CASCADE;
 DROP TABLE IF EXISTS VehicleKeyword CASCADE;
 DROP TABLE IF EXISTS VehicleAmenity CASCADE;
 DROP TABLE IF EXISTS Vehicle CASCADE;
@@ -128,6 +129,14 @@ CREATE TABLE VehicleAmenity (
     vehicle_id UUID NOT NULL REFERENCES Vehicle(vehicle_id) ON DELETE CASCADE,
     amenity_name TEXT NOT NULL,
     UNIQUE (vehicle_id, amenity_name)
+);
+
+CREATE TABLE VehicleInclusion (
+    vehicle_inclusion_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    vehicle_id UUID NOT NULL REFERENCES Vehicle(vehicle_id) ON DELETE CASCADE,
+    inclusion_name TEXT NOT NULL,
+    is_included BOOLEAN NOT NULL DEFAULT true,
+    UNIQUE (vehicle_id, inclusion_name)
 );
 
 CREATE TABLE VehicleKeyword (

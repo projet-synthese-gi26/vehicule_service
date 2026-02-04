@@ -119,6 +119,30 @@ public class VehicleDetailsController {
         return detailsUseCase.deleteKeyword(id);
     }
 
+    // Inclusion
+    @PostMapping("/inclusions")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Create Vehicle Inclusion")
+    public Mono<VehicleInclusionResponse> createInclusion(@Valid @RequestBody VehicleInclusionRequest request) {
+        return Mono.just(mapper.toDomain(request))
+                .flatMap(detailsUseCase::createInclusion)
+                .map(mapper::toResponse);
+    }
+
+    @GetMapping("/inclusions/vehicle/{vehicleId}")
+    @Operation(summary = "Get Inclusions by Vehicle ID")
+    public Flux<VehicleInclusionResponse> getInclusionsByVehicleId(@PathVariable UUID vehicleId) {
+        return detailsUseCase.getInclusionsByVehicleId(vehicleId)
+                .map(mapper::toResponse);
+    }
+
+    @DeleteMapping("/inclusions/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Delete Inclusion")
+    public Mono<Void> deleteInclusion(@PathVariable UUID id) {
+        return detailsUseCase.deleteInclusion(id);
+    }
+
     // Review
     @PostMapping("/reviews")
     @ResponseStatus(HttpStatus.CREATED)

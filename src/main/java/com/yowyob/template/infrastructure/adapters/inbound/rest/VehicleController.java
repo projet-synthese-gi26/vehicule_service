@@ -7,6 +7,8 @@ import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.PatchVehicle
 import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.SimplifiedVehicleRequest;
 import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.VehicleRequest;
 import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.VehicleResponse;
+import com.yowyob.template.infrastructure.adapters.outbound.persistence.entity.VehicleInclusionEntity;
+import com.yowyob.template.infrastructure.adapters.outbound.persistence.repository.VehicleInclusionR2dbcRepository;
 import com.yowyob.template.infrastructure.mappers.VehicleMapper;
 import com.yowyob.template.infrastructure.security.AuthenticatedUser;
 
@@ -25,6 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -36,6 +39,7 @@ public class VehicleController {
     private final ManageVehicleUseCase manageVehicleUseCase;
     private final VehicleMapper mapper;
     private final VehicleSmartCreationService smartCreationService;
+    private final VehicleInclusionR2dbcRepository inclusionRepository;
 
     // =================================================================================================
     // 1. SMART CREATION (Mode Simplifié)
@@ -66,7 +70,7 @@ public class VehicleController {
 
         // On délègue au service d'application qui gère les lookups et la liaison
         return smartCreationService.createVehicleFromNames(request, partyId)
-                .map(mapper::toResponse);
+                .flatMap(this::buildVehicleResponse);
     }
 
     // =================================================================================================
@@ -84,7 +88,8 @@ public class VehicleController {
     public Mono<VehicleResponse> createVehicle(@Valid @RequestBody VehicleRequest vehicleRequest) {
         return Mono.just(mapper.toDomain(vehicleRequest))
                 .flatMap(manageVehicleUseCase::createVehicle)
-                .map(mapper::toResponse);
+                .flatMap(vehicle -> saveInclusions(vehicle.vehicleId(), vehicleRequest)
+                        .then(buildVehicleResponse(vehicle)));
     }
 
     // =================================================================================================
@@ -100,14 +105,14 @@ public class VehicleController {
         }
         UUID partyId = UUID.fromString(user.getId());
         return manageVehicleUseCase.getVehiclesByOwner(partyId)
-                .map(mapper::toResponse);
+                .flatMap(this::buildVehicleResponse);
     }
 
     @GetMapping("/user/{userId}")
     @Operation(summary = "Lister les véhicules d'un utilisateur", description = "Retourne les véhicules associés à l'utilisateur indiqué.")
     public Flux<VehicleResponse> getVehiclesByUserId(@PathVariable UUID userId) {
         return manageVehicleUseCase.getVehiclesByOwner(userId)
-                .map(mapper::toResponse);
+                .flatMap(this::buildVehicleResponse);
     }
 
     @GetMapping("/{id}")
@@ -119,7 +124,7 @@ public class VehicleController {
     })
     public Mono<VehicleResponse> getVehicleById(@PathVariable UUID id) {
         return manageVehicleUseCase.getVehicleById(id)
-                .map(mapper::toResponse);
+                .flatMap(this::buildVehicleResponse);
     }
 
     // =================================================================================================
@@ -147,7 +152,8 @@ public class VehicleController {
         );
 
         return manageVehicleUseCase.updateVehicle(v)
-                .map(mapper::toResponse);
+                .flatMap(vehicle -> replaceInclusions(vehicle.vehicleId(), r)
+                        .then(buildVehicleResponse(vehicle)));
     }
 
     @PatchMapping("/{id}")
@@ -174,7 +180,8 @@ public class VehicleController {
         );
 
         return manageVehicleUseCase.patchVehicle(id, partialVehicle)
-                .map(mapper::toResponse);
+                .flatMap(vehicle -> patchInclusions(vehicle.vehicleId(), patchRequest)
+                        .then(buildVehicleResponse(vehicle)));
     }
 
     // =================================================================================================
@@ -191,5 +198,133 @@ public class VehicleController {
     })
     public Mono<Void> deleteVehicle(@PathVariable UUID id) {
         return manageVehicleUseCase.deleteVehicle(id);
+    }
+
+    private Mono<Void> saveInclusions(UUID vehicleId, VehicleRequest request) {
+        return replaceInclusions(vehicleId, request);
+    }
+
+    private Mono<Void> replaceInclusions(UUID vehicleId, VehicleRequest request) {
+        return inclusionRepository.deleteByVehicleId(vehicleId)
+                .thenMany(buildInclusions(vehicleId, request))
+                .flatMap(inclusionRepository::save)
+                .then();
+    }
+
+    private Mono<Void> patchInclusions(UUID vehicleId, PatchVehicleRequest request) {
+        return buildInclusions(vehicleId, request)
+                .flatMap(inclusion -> inclusionRepository.deleteByVehicleIdAndInclusionName(vehicleId, inclusion.getInclusionName())
+                        .then(inclusionRepository.save(inclusion)))
+                .then();
+    }
+
+    private Mono<VehicleResponse> buildVehicleResponse(Vehicle vehicle) {
+        return inclusionRepository.findByVehicleId(vehicle.vehicleId())
+                .collectList()
+                .map(inclusions -> toResponseWithInclusions(vehicle, inclusions));
+    }
+
+    private VehicleResponse toResponseWithInclusions(Vehicle vehicle, List<VehicleInclusionEntity> inclusions) {
+        return new VehicleResponse(
+                vehicle.vehicleId(),
+                vehicle.vehicleMakeId(),
+                vehicle.vehicleModelId(),
+                vehicle.transmissionTypeId(),
+                vehicle.manufacturerId(),
+                vehicle.vehicleSizeId(),
+                vehicle.vehicleTypeId(),
+                vehicle.fuelTypeId(),
+                vehicle.vehicleSerialNumber(),
+                vehicle.vehicleSerialPhoto(),
+                vehicle.registrationNumber(),
+                vehicle.registrationPhoto(),
+                vehicle.registrationExpiryDate(),
+                vehicle.tankCapacity(),
+                vehicle.luggageMaxCapacity(),
+                vehicle.totalSeatNumber(),
+                vehicle.averageFuelConsumptionPerKm(),
+                vehicle.mileageAtStart(),
+                vehicle.mileageSinceCommissioning(),
+                vehicle.vehicleAgeAtStart(),
+                vehicle.brand(),
+                vehicle.createdAt(),
+                vehicle.updatedAt(),
+                inclusionValue(inclusions, "Air-conditioned"),
+                inclusionValue(inclusions, "Comfortable"),
+                inclusionValue(inclusions, "Soft"),
+                inclusionValue(inclusions, "Screen"),
+                inclusionValue(inclusions, "Wifi"),
+                inclusionValue(inclusions, "Toll charge"),
+                inclusionValue(inclusions, "Car Parking"),
+                inclusionValue(inclusions, "Alarm"),
+                inclusionValue(inclusions, "State tax"),
+                inclusionValue(inclusions, "Driver Allowance"),
+                inclusionValue(inclusions, "Pickup and drop"),
+                inclusionValue(inclusions, "Internet"),
+                inclusionValue(inclusions, "Pets Allow")
+        );
+    }
+
+    private Boolean inclusionValue(List<VehicleInclusionEntity> inclusions, String name) {
+        return inclusions.stream()
+                .filter(inclusion -> name.equalsIgnoreCase(inclusion.getInclusionName()))
+                .map(VehicleInclusionEntity::getIsIncluded)
+                .findFirst()
+                .orElse(false);
+    }
+
+    private reactor.core.publisher.Flux<VehicleInclusionEntity> buildInclusions(UUID vehicleId, VehicleRequest request) {
+        return buildInclusions(vehicleId, request.airConditioned(), request.comfortable(), request.soft(), request.screen(),
+                request.wifi(), request.tollCharge(), request.carParking(), request.alarm(), request.stateTax(),
+                request.driverAllowance(), request.pickupAndDrop(), request.internet(), request.petsAllow());
+    }
+
+    private reactor.core.publisher.Flux<VehicleInclusionEntity> buildInclusions(UUID vehicleId, PatchVehicleRequest request) {
+        return buildInclusions(vehicleId, request.airConditioned(), request.comfortable(), request.soft(), request.screen(),
+                request.wifi(), request.tollCharge(), request.carParking(), request.alarm(), request.stateTax(),
+                request.driverAllowance(), request.pickupAndDrop(), request.internet(), request.petsAllow());
+    }
+
+    private reactor.core.publisher.Flux<VehicleInclusionEntity> buildInclusions(
+            UUID vehicleId,
+            Boolean airConditioned,
+            Boolean comfortable,
+            Boolean soft,
+            Boolean screen,
+            Boolean wifi,
+            Boolean tollCharge,
+            Boolean carParking,
+            Boolean alarm,
+            Boolean stateTax,
+            Boolean driverAllowance,
+            Boolean pickupAndDrop,
+            Boolean internet,
+            Boolean petsAllow) {
+        return reactor.core.publisher.Flux.just(
+                        inclusion(vehicleId, "Air-conditioned", airConditioned),
+                        inclusion(vehicleId, "Comfortable", comfortable),
+                        inclusion(vehicleId, "Soft", soft),
+                        inclusion(vehicleId, "Screen", screen),
+                        inclusion(vehicleId, "Wifi", wifi),
+                        inclusion(vehicleId, "Toll charge", tollCharge),
+                        inclusion(vehicleId, "Car Parking", carParking),
+                        inclusion(vehicleId, "Alarm", alarm),
+                        inclusion(vehicleId, "State tax", stateTax),
+                        inclusion(vehicleId, "Driver Allowance", driverAllowance),
+                        inclusion(vehicleId, "Pickup and drop", pickupAndDrop),
+                        inclusion(vehicleId, "Internet", internet),
+                        inclusion(vehicleId, "Pets Allow", petsAllow))
+                .filter(java.util.Objects::nonNull);
+    }
+
+    private VehicleInclusionEntity inclusion(UUID vehicleId, String name, Boolean isIncluded) {
+        if (isIncluded == null) {
+            return null;
+        }
+        return VehicleInclusionEntity.builder()
+                .vehicleId(vehicleId)
+                .inclusionName(name)
+                .isIncluded(isIncluded)
+                .build();
     }
 }

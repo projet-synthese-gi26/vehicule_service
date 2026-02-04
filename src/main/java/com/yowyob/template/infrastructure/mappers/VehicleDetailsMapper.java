@@ -5,6 +5,7 @@ import org.mapstruct.Mapper;
 import com.yowyob.template.domain.model.vehicle.details.VehicleAmenity;
 import com.yowyob.template.domain.model.vehicle.details.VehicleCanTransport;
 import com.yowyob.template.domain.model.vehicle.details.VehicleIllustrationImage;
+import com.yowyob.template.domain.model.vehicle.details.VehicleInclusion;
 import com.yowyob.template.domain.model.vehicle.details.VehicleKeyword;
 import com.yowyob.template.domain.model.vehicle.details.VehicleReview;
 import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.details.VehicleAmenityRequest;
@@ -13,6 +14,8 @@ import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.details.Vehi
 import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.details.VehicleCanTransportResponse;
 import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.details.VehicleIllustrationImageRequest;
 import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.details.VehicleIllustrationImageResponse;
+import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.details.VehicleInclusionRequest;
+import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.details.VehicleInclusionResponse;
 import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.details.VehicleKeywordRequest;
 import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.details.VehicleKeywordResponse;
 import com.yowyob.template.infrastructure.adapters.inbound.rest.dto.details.VehicleReviewRequest;
@@ -54,6 +57,14 @@ public interface VehicleDetailsMapper {
     VehicleIllustrationImageEntity toEntity(VehicleIllustrationImage domain);
 
     VehicleIllustrationImage toDomain(VehicleIllustrationImageEntity entity);
+
+    VehicleInclusion toDomain(VehicleInclusionRequest request);
+
+    VehicleInclusionResponse toResponse(VehicleInclusion domain);
+
+    VehicleInclusionEntity toEntity(VehicleInclusion domain);
+
+    VehicleInclusion toDomain(VehicleInclusionEntity entity);
 
     VehicleReview toDomain(VehicleReviewRequest request);
 

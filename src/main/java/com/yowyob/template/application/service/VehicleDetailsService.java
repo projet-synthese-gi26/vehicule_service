@@ -79,6 +79,22 @@ public class VehicleDetailsService implements ManageVehicleDetailsUseCase {
         return repositoryPort.deleteKeyword(id);
     }
 
+    // Inclusion
+    @Override
+    public Mono<VehicleInclusion> createInclusion(VehicleInclusion inclusion) {
+        return repositoryPort.saveInclusion(inclusion);
+    }
+
+    @Override
+    public Flux<VehicleInclusion> getInclusionsByVehicleId(UUID vehicleId) {
+        return repositoryPort.findInclusionsByVehicleId(vehicleId);
+    }
+
+    @Override
+    public Mono<Void> deleteInclusion(UUID id) {
+        return repositoryPort.deleteInclusion(id);
+    }
+
     // Review
     @Override
     public Mono<VehicleReview> createReview(VehicleReview review) {

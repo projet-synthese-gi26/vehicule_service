@@ -35,5 +35,19 @@ public record VehicleResponse(
 
                 String brand,
                 LocalDateTime createdAt,
-                LocalDateTime updatedAt) {
+                LocalDateTime updatedAt,
+
+                Boolean airConditioned,
+                Boolean comfortable,
+                Boolean soft,
+                Boolean screen,
+                Boolean wifi,
+                Boolean tollCharge,
+                Boolean carParking,
+                Boolean alarm,
+                Boolean stateTax,
+                Boolean driverAllowance,
+                Boolean pickupAndDrop,
+                Boolean internet,
+                Boolean petsAllow) {
 }

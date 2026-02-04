@@ -34,6 +34,13 @@ public interface ManageVehicleDetailsUseCase {
 
     Mono<Void> deleteKeyword(UUID id);
 
+    // Inclusion
+    Mono<VehicleInclusion> createInclusion(VehicleInclusion inclusion);
+
+    Flux<VehicleInclusion> getInclusionsByVehicleId(UUID vehicleId);
+
+    Mono<Void> deleteInclusion(UUID id);
+
     // Review
     Mono<VehicleReview> createReview(VehicleReview review);
 

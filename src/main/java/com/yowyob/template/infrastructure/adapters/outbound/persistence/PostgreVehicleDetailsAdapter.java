@@ -18,6 +18,7 @@ public class PostgreVehicleDetailsAdapter implements VehicleDetailsRepositoryPor
     private final VehicleCanTransportR2dbcRepository canTransportRepository;
     private final VehicleIllustrationImageR2dbcRepository illustrationImageRepository;
     private final VehicleKeywordR2dbcRepository keywordRepository;
+    private final VehicleInclusionR2dbcRepository inclusionRepository;
     private final VehicleReviewR2dbcRepository reviewRepository;
     private final VehicleDetailsMapper mapper;
 
@@ -107,6 +108,28 @@ public class PostgreVehicleDetailsAdapter implements VehicleDetailsRepositoryPor
     @Override
     public Mono<Void> deleteKeyword(UUID id) {
         return keywordRepository.deleteById(id);
+    }
+
+    // Inclusion
+    @Override
+    public Mono<VehicleInclusion> saveInclusion(VehicleInclusion inclusion) {
+        var entity = mapper.toEntity(inclusion);
+        if (inclusion.vehicleInclusionId() != null) {
+            entity.setVehicleInclusionId(inclusion.vehicleInclusionId());
+        }
+        return inclusionRepository.save(entity)
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public Flux<VehicleInclusion> findInclusionsByVehicleId(UUID vehicleId) {
+        return inclusionRepository.findByVehicleId(vehicleId)
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public Mono<Void> deleteInclusion(UUID id) {
+        return inclusionRepository.deleteById(id);
     }
 
     // Review

@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -32,6 +34,7 @@ public class VehicleSmartCreationService {
     private final VehicleSizeR2dbcRepository sizeRepo;
     private final VehicleTypeR2dbcRepository typeRepo;
     private final FuelTypeR2dbcRepository fuelRepo;
+    private final VehicleInclusionR2dbcRepository inclusionRepository;
 
     @Transactional
     public Mono<Vehicle> createVehicleFromNames(SimplifiedVehicleRequest request, UUID partyId) {
@@ -155,10 +158,50 @@ public class VehicleSmartCreationService {
                                         
                                         return ownershipRepository.saveOwnership(ownership)
                                                 .doOnSuccess(o -> log.info("Ownership créé."))
+                                                .then(saveInclusions(savedVehicle.vehicleId(), request))
                                                 .thenReturn(savedVehicle);
                                     });
                         });
             })
             .doOnError(e -> log.error("Erreur durant le Smart Create : ", e));
+    }
+
+    private Mono<Void> saveInclusions(UUID vehicleId, SimplifiedVehicleRequest request) {
+        List<VehicleInclusionEntity> inclusions = buildInclusions(vehicleId, request);
+        if (inclusions.isEmpty()) {
+            return Mono.empty();
+        }
+        return reactor.core.publisher.Flux.fromIterable(inclusions)
+                .flatMap(inclusionRepository::save)
+                .then();
+    }
+
+    private List<VehicleInclusionEntity> buildInclusions(UUID vehicleId, SimplifiedVehicleRequest request) {
+        List<VehicleInclusionEntity> inclusions = new ArrayList<>();
+        addInclusion(inclusions, vehicleId, "Air-conditioned", request.airConditioned());
+        addInclusion(inclusions, vehicleId, "Comfortable", request.comfortable());
+        addInclusion(inclusions, vehicleId, "Soft", request.soft());
+        addInclusion(inclusions, vehicleId, "Screen", request.screen());
+        addInclusion(inclusions, vehicleId, "Wifi", request.wifi());
+        addInclusion(inclusions, vehicleId, "Toll charge", request.tollCharge());
+        addInclusion(inclusions, vehicleId, "Car Parking", request.carParking());
+        addInclusion(inclusions, vehicleId, "Alarm", request.alarm());
+        addInclusion(inclusions, vehicleId, "State tax", request.stateTax());
+        addInclusion(inclusions, vehicleId, "Driver Allowance", request.driverAllowance());
+        addInclusion(inclusions, vehicleId, "Pickup and drop", request.pickupAndDrop());
+        addInclusion(inclusions, vehicleId, "Internet", request.internet());
+        addInclusion(inclusions, vehicleId, "Pets Allow", request.petsAllow());
+        return inclusions;
+    }
+
+    private void addInclusion(List<VehicleInclusionEntity> inclusions, UUID vehicleId, String name, Boolean isIncluded) {
+        if (isIncluded == null) {
+            return;
+        }
+        inclusions.add(VehicleInclusionEntity.builder()
+                .vehicleId(vehicleId)
+                .inclusionName(name)
+                .isIncluded(isIncluded)
+                .build());
     }
 }

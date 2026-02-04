@@ -81,5 +81,61 @@ public record SimplifiedVehicleRequest(
     BigDecimal vehicleAgeAtStart,
 
     @Schema(description = "Marque commerciale (souvent identique à la Marque)", example = "Toyota")
-    String brand
-) {}
+    String brand,
+
+    // ==================================================================================
+    // 3. INCLUSIONS / EXCLUSIONS
+    // ==================================================================================
+
+    @Schema(description = "Climatisation")
+    @NotNull(message = "airConditioned is required")
+    Boolean airConditioned,
+
+    @Schema(description = "Confortable")
+    @NotNull(message = "comfortable is required")
+    Boolean comfortable,
+
+    @Schema(description = "Soft")
+    @NotNull(message = "soft is required")
+    Boolean soft,
+
+    @Schema(description = "Screen")
+    @NotNull(message = "screen is required")
+    Boolean screen,
+
+    @Schema(description = "Wifi")
+    @NotNull(message = "wifi is required")
+    Boolean wifi,
+
+    @Schema(description = "Toll charge")
+    @NotNull(message = "tollCharge is required")
+    Boolean tollCharge,
+
+    @Schema(description = "Car Parking")
+    @NotNull(message = "carParking is required")
+    Boolean carParking,
+
+    @Schema(description = "Alarm")
+    @NotNull(message = "alarm is required")
+    Boolean alarm,
+
+    @Schema(description = "State tax")
+    @NotNull(message = "stateTax is required")
+    Boolean stateTax,
+
+    @Schema(description = "Driver Allowance")
+    @NotNull(message = "driverAllowance is required")
+    Boolean driverAllowance,
+
+    @Schema(description = "Pickup and drop")
+    @NotNull(message = "pickupAndDrop is required")
+    Boolean pickupAndDrop,
+
+    @Schema(description = "Internet")
+    @NotNull(message = "internet is required")
+    Boolean internet,
+
+    @Schema(description = "Pets Allow")
+    @NotNull(message = "petsAllow is required")
+    Boolean petsAllow
+) { }
