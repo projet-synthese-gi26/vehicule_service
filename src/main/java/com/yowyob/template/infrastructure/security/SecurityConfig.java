@@ -56,6 +56,9 @@ public class SecurityConfig {
 
                         // Route publique: véhicules par utilisateur
                         .pathMatchers(HttpMethod.GET, "/vehicles/user/**").permitAll()
+
+                        // Route publique: images d'illustration d'un véhicule
+                        .pathMatchers(HttpMethod.GET, "/vehicles/*/images").permitAll()
                         
                         // Tout le reste nécessite un token
                         .anyExchange().authenticated()
