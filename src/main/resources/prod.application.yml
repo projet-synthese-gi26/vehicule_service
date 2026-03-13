@@ -20,40 +20,74 @@ spring:
   codec:
     max-in-memory-size: 10MB
 
-  # POSTGRESQL (R2DBC)
+  # ------------------------------------------------------------------
+  # DATABASE — Liquibase
+  # ------------------------------------------------------------------
+  liquibase:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME:yowyob}
+    user: ${DB_LIQUIBASE_USERNAME}
+    password: ${DB_LIQUIBASE_PASSWORD}
+    enabled: true
+
+  # ------------------------------------------------------------------
+  # DATABASE — R2DBC réactif
+  # ------------------------------------------------------------------
   r2dbc:
-    url: r2dbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:reactivedb}
-    username: ${DB_USERNAME:user}
-    password: ${DB_PASSWORD:password}
+    url: r2dbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME:yowyob}?schema=ride_and_go
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     pool:
       enabled: true
-      initial-size: 1
-      max-size: 5
+      initial-size: 5
+      max-size: 20
       max-idle-time: 30m
-      max-life-time: 10m
-      acquire-retry: 3
-      max-acquire-time: 30s
       validation-query: SELECT 1
+
   sql:
     init:
-      mode: always
+      mode: never
 
-  # REDIS CLUSTER 
+  # ------------------------------------------------------------------
+  # REDIS CLUSTER
+  # ------------------------------------------------------------------
   data:
     redis:
-      password: ${REDIS_PASSWORD:password}
+      username: ${REDIS_USERNAME}
+      password: ${REDIS_PASSWORD}
       cluster:
         nodes:
-          - ${REDIS_HOST:localhost}:7001
-          - ${REDIS_HOST:localhost}:7002
-          - ${REDIS_HOST:localhost}:7003
-          - ${REDIS_HOST:localhost}:7004
-          - ${REDIS_HOST:localhost}:7005
-          - ${REDIS_HOST:localhost}:7006
+          - ${REDIS_HOST}:7001
+          - ${REDIS_HOST}:7002
+          - ${REDIS_HOST}:7003
+          - ${REDIS_HOST}:7004
+          - ${REDIS_HOST}:7005
+          - ${REDIS_HOST}:7006
+        max-redirects: 3
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+        cluster:
+          refresh:
+            adaptive: true
+            period: 30s
+            dynamic-refresh-sources: false
 
-  # KAFKA 
+  # ------------------------------------------------------------------
+  # KAFKA — Connexion sécurisée SASL/SCRAM-SHA-256
+  # ------------------------------------------------------------------
   kafka:
-    bootstrap-servers: ${KAFKA_HOST:localhost}:${KAFKA_PORT:9092}
+    bootstrap-servers: ${KAFKA_HOST}:${KAFKA_PORT:29092}
+
+    # ── Authentification SASL/SCRAM-SHA-256 ────────────────────────
+    properties:
+      security.protocol: SASL_PLAINTEXT
+      sasl.mechanism: SCRAM-SHA-256
+      sasl.jaas.config: >
+        org.apache.kafka.common.security.scram.ScramLoginModule required
+        username="${KAFKA_BACKEND_USER}"
+        password="${KAFKA_BACKEND_PASSWORD}";
     consumer:
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
