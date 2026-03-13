@@ -143,6 +143,7 @@ resilience4j:
 ## 📚 Documentation de l'API (Swagger UI)
 
 Le projet intègre **OpenAPI 3** (via Springdoc) pour documenter et tester les endpoints automatiquement.
+test
 
 Une fois l'application lancée, la documentation est accessible ici :
 
