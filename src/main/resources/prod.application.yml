@@ -123,6 +123,11 @@ management:
       prometheus:
         enabled: true
 
+# AUTH SERVICE
+auth:
+  service:
+    url: https://traefikdev.yowyob.com/auth
+
 # RESILIENCE4J 
 resilience4j:
   circuitbreaker:
