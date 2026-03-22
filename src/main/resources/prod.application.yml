@@ -33,7 +33,7 @@ spring:
   # DATABASE — R2DBC réactif
   # ------------------------------------------------------------------
   r2dbc:
-    url: r2dbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME:yowyob}?schema=ride_and_go
+    url: r2dbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME:yowyob}?schema=${DB_SCHEMA:public}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     pool:
