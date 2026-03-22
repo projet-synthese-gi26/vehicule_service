@@ -17,7 +17,10 @@ spring:
       max-request-size: 10MB    # Taille max de la requête totale
 
   springdoc:
+    api-docs:
+      path: /v3/api-docs
     swagger-ui:
+      path: /swagger-ui.html
       config-url: /vehicule/v3/api-docs  # indispensable pour faire marcher le swagger en ligne (dans notre architecture actuel)
 
   # Configuration des Codecs (Pour éviter les erreurs "DataBufferLimitException")
