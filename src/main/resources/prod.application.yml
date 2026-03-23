@@ -2,14 +2,12 @@ server:
   port: 8080
 
 springdoc:
-  api-docs:
-    enabled: true
-    path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
-    config-url: /vehicule/v3/api-docs
+    config-url: /vehicule/v3/api-docs/swagger-config
     url: /vehicule/v3/api-docs
-    disable-swagger-default-url: true
+  api-docs:
+    path: /v3/api-docs
 
 spring:
   application:
