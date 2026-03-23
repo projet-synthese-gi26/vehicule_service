@@ -23,7 +23,7 @@ public class OpenApiConfig {
 
         return new OpenAPI()
                 .info(new Info()
-                        .title("YowYob Microservice UGate - API")
+                        .title("YowYob Microservice Vehicule - API")
                         .version("1.0.0")
                         .description("Documentation de l'API Vehicule pour la gestion des Véhicules.")
                         .contact(new Contact()
@@ -43,7 +43,11 @@ public class OpenApiConfig {
                                         .bearerFormat("JWT")
                         )
                 )
-
+                .servers(List.of(
+                    new Server()
+                        .url("https://traefikdev.yowyob.com/vehicule")
+                        .description("Production")
+                ))
 
                 .addSecurityItem(new SecurityRequirement().addList(securitySchemeName));
     }
