@@ -8,7 +8,7 @@ springdoc:
     path: /swagger-ui.html
     config-url: /vehicule/v3/api-docs
     #url: /vehicule/v3/api-docs
-    #disable-swagger-default-url: true
+    disable-swagger-default-url: true
 
 spring:
   application:
