@@ -29,6 +29,15 @@ spring:
     max-in-memory-size: 10MB
 
   # ------------------------------------------------------------------
+  # DATABASE — DataSource (JDBC requis pour Liquibase)
+  # ------------------------------------------------------------------
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME:yowyob}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  # ------------------------------------------------------------------
   # DATABASE — Liquibase
   # ------------------------------------------------------------------
   liquibase:

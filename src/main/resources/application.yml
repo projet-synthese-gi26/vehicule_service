@@ -33,10 +33,20 @@ spring:
       acquire-retry: 3
       max-acquire-time: 30s
       validation-query: SELECT 1
+  
+  # JDBC DataSource pour Liquibase (Obligatoire car Liquibase n'est pas réactif)
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:reactivedb}
+    username: ${DB_USERNAME:user}
+    password: ${DB_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
   # DATABASE — Liquibase
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
     enabled: true
+    user: ${DB_USERNAME:user}
+    password: ${DB_PASSWORD:password}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:reactivedb}
 
   sql:
     init:
@@ -92,7 +102,7 @@ management:
 # AUTH SERVICE
 auth:
   service:
-    url: https://auth-service.pynfi.com
+    url: https://traefikdev.yowyob.com/auth
 
 # RESILIENCE4J 
 resilience4j:
