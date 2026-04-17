@@ -1,0 +1,8 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-initial-schema
+      author: antigravity
+      changes:
+        - sqlFile:
+            path: db/changelog/migrations/001-initial-schema.sql
+            relativeToChangelogFile: false

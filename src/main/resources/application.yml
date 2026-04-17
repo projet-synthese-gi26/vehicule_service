@@ -33,9 +33,14 @@ spring:
       acquire-retry: 3
       max-acquire-time: 30s
       validation-query: SELECT 1
+  # DATABASE — Liquibase
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    enabled: true
+
   sql:
     init:
-      mode: always
+      mode: never
 
   # REDIS CLUSTER 
   data:
